@@ -130,6 +130,10 @@ export async function loadGrades(periodIndex) {
 /* ---------- Router ---------- */
 const APP_ROUTES = new Set(['grades', 'schedule', 'attendance', 'documents', 'settings']);
 
+/* While auto-login is running, route changes wait for it instead of
+   bouncing the user to the login page mid-boot. */
+let bootGate = Promise.resolve();
+
 function currentRoute() {
   const h = location.hash.replace(/^#\/?/, '');
   const [path, query] = h.split('?');
@@ -145,6 +149,7 @@ function requireAuth() {
 }
 
 export async function route() {
+  await bootGate.catch(() => {});
   const { name, arg, params } = currentRoute();
   const view = $('#view');
   view.scrollTop = 0;
@@ -317,13 +322,18 @@ async function boot() {
     updateChrome();
   } else if (loadCreds()) {
     // auto-login then continue to the requested route
+    let release;
+    bootGate = new Promise((r) => { release = r; });
     viewLoading('Signing you in…');
     try {
       await autoLogin();
+      release();
       route();
     } catch {
+      release();
       location.hash = '#/login';
     }
+    updateChrome();
   } else {
     location.hash = '#/login';
   }
