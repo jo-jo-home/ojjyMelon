@@ -42,8 +42,12 @@ Nothing is logged by the worker, and you can read its ~80 lines of code before y
   - JSON API: `POST /api/v1/mobile/PXPWebServices/<Method>` with HTTP Basic login → Bearer token
   - SOAP fallback: `ProcessWebServiceRequestMultiWeb` on `/Service/PXPCommunication.asmx`
   - Both require the `edupointkeyversion` version key, which the app fetches automatically from a public key service (and caches, with manual override in Settings)
-- **MCPS grading** — A ≥ 89.5, B ≥ 79.5, C ≥ 69.5, D ≥ 59.5, E below (verified against the district's own grading scale). Grades are recalculated from assignment scores with empty categories skipped, exactly like GradeMelon did.
-- **Privacy** — no servers, no databases, no analytics. Credentials live only in your browser (and only if you check *Remember me*). See the in-app Privacy page.
+- **Connections, in order of preference:**
+  1. **Your relay** (Settings → Proxy relay): the Cloudflare Worker from [`worker/`](worker/) (or the Node [`worker/local-relay.js`](worker/local-relay.js) for local use). Full feature set, your infrastructure, nothing logged.
+  2. **Zero-setup public relay** (MCPS): a community-hosted [svue-api](https://github.com/Zillorz/svue-api) instance that is CORS-enabled and serves grades, schedule, documents, and student info with your district credentials — this is what makes ojjyMelon work on GitHub Pages with **no deployment steps**. Attendance and document downloads aren't available through it; those need your own relay. Credentials pass through that third-party service (exactly like GradeMelon's proxy did) — use your own worker if that bothers you.
+  3. **Public CORS proxies**: best-effort automatic fallback for other districts.
+- **MCPS grading** — A ≥ 89.5, B ≥ 79.5, C ≥ 69.5, D ≥ 59.5, E below (verified against the district's own grading scale). Grades are recalculated from assignment scores with empty categories skipped, exactly like GradeMelon did. Weighted GPA adds +1.0 for A/B/C in Honors/AP/IB per MCPS policy.
+- **Privacy** — no servers of our own, no databases, no analytics. Credentials live only in your browser (and only if you check *Remember me*). See the in-app Privacy page.
 
 ## Development
 

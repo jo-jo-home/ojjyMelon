@@ -20,11 +20,14 @@ export function renderPrivacy(view) {
       <p style="margin:0 0 10px;color:var(--text-soft);line-height:1.65;font-size:.92rem">
         To show your grades, ojjyMelon must talk to your school district's StudentVUE
         server — the same one the official app uses, at <span class="kbd">md-mcps-psv.edupoint.com</span>.
-        Browsers cannot call that server directly (it does not allow cross-site requests),
-        so requests are relayed through a small proxy service which <b>forwards and
-        immediately forgets</b> your request. Your credentials are never logged, stored, or
-        shared by ojjyMelon. For maximum privacy you can run your own relay — see the
-        README in the GitHub repository for a one-click Cloudflare Worker you control.
+        Browsers cannot call that server directly (it does not allow cross-site requests), so
+        ojjyMelon relays requests one of two ways: through a small <b>public relay</b> (no setup
+        needed; your credentials pass through that third-party service the same way they did
+        with GradeMelon's proxy), or through <b>your own relay</b> — a ~80-line Cloudflare Worker
+        you deploy yourself in two minutes (see the GitHub README), which forwards and immediately
+        forgets your request. Nothing is logged, stored, or shared by ojjyMelon itself either way.
+        Your credentials are never written back to your gradebook: score edits are local what-if
+        simulations only.
       </p>
     </div>
 

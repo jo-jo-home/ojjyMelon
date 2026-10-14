@@ -4,6 +4,13 @@ import { escapeHTML, openModal, confirmModal, toast, successToast } from '../ui.
 
 export async function renderSettings(view) {
   const keyInfo = getStoredKeyInfo();
+  const mode = state.client?.mode || (state.guest ? 'guest' : null);
+  const modeLabel = {
+    svue: 'Zero-setup public relay (fast, no configuration — attendance & document downloads need your own relay)',
+    json: 'Full connection via StudentVUE JSON API (through your relay/proxy chain)',
+    soap: 'Full connection via Synergy SOAP API (through your relay/proxy chain)',
+    guest: 'Guest mode — sample data only',
+  }[mode] || 'Not signed in';
 
   view.innerHTML = `
   <div style="max-width:680px">
@@ -11,6 +18,11 @@ export async function renderSettings(view) {
     <p class="toolbar-sub">Connection options for ojjyMelon. You rarely need to touch these — they exist for reliability and transparency.</p>
 
     <div class="settings-grid">
+      <div class="card settings-card">
+        <h3>Current connection</h3>
+        <p>${escapeHTML(modeLabel)}</p>
+      </div>
+
       <div class="card settings-card">
         <h3>Proxy relay</h3>
         <p>Browsers can't contact your district's StudentVUE server directly, so ojjyMelon relays requests. By default it uses public CORS proxies, which are convenient but rate-limited. For a rock-solid connection, deploy the free one-click Cloudflare Worker from the GitHub README and paste its URL here.</p>
