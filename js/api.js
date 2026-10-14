@@ -187,6 +187,14 @@ async function proxiedFetch(url, init = {}) {
   throw lastErr || new Error('No proxy could reach the StudentVUE server.');
 }
 
+/* ---------- Public relay (zero-setup mode for MCPS) ----------
+   axum-svue.fly.dev is a community-hosted svue-api instance that is
+   CORS-enabled and speaks HTTP Basic auth. It covers MCPS only, but it
+   means ojjyMelon works on GitHub Pages with NO relay deployed.
+   Attendance + document downloads still need the proxied path. */
+const SVUE_BASE = 'https://axum-svue.fly.dev';
+const isMCPSHost = (district) => /md-mcps.*\.edupoint\.com/.test(district || '');
+
 /* ---------- Client ---------- */
 export class StudentVue {
   constructor(districtURL) {
@@ -195,12 +203,160 @@ export class StudentVue {
     this.refresh = null;
     this.username = null;
     this.password = null;
-    this.soapMode = false; // set when JSON API unavailable
+    this.mode = null;            // 'json' | 'svue' | 'soap'
+    this.proxyJSONFailed = false; // remember a failed proxied attempt (svue mode)
     // per-session caches (mirrors GradeMelon's client.loaded*)
     this.loadedAttendance = null;
     this.loadedSchedule = new Map();
     this.loadedDocuments = null;
     this.loadedStudentInfo = null;
+  }
+
+  isMCPS() { return isMCPSHost(this.district); }
+
+  /* -- Public relay (svue) helpers -- */
+
+  async #svueFetch(path) {
+    const headers = {};
+    if (this.username) headers.Authorization = 'Basic ' + btoa(`${this.username}:${this.password}`);
+    const res = await fetch(SVUE_BASE + path, { headers, cache: 'no-store' });
+    if (res.status === 401 || res.status === 400) throw new UnauthorizedError();
+    if (!res.ok) throw new ApiError(`Public relay error (HTTP ${res.status})`, String(res.status));
+    const text = await res.text();
+    try { return JSON.parse(text); } catch {
+      throw new ApiError('Public relay returned an invalid response.', 'relay');
+    }
+  }
+
+  async #svueValidate() {
+    await this.#svueFetch('/student'); // throws UnauthorizedError on bad credentials
+    return true;
+  }
+
+  svueGradebookToInternal(data) {
+    const periods = (data.reporting_periods || []).map((p, i) => ({
+      index: String(i),
+      gradePeriod: p.name,
+      startDate: p.start_date,
+      endDate: p.end_date,
+    }));
+    const rpIndex = Number(data.report_period ?? 0) || 0;
+    const rpName = periods[rpIndex]?.gradePeriod || '';
+    const courses = (data.classes || []).map((c, i) => ({
+      period: String(i + 1),
+      title: c.name,
+      courseName: c.name,
+      courseID: '',
+      room: '',
+      staff: c.teacher || '',
+      staffEMail: '',
+      marks: [{
+        markName: rpName,
+        calculatedScoreString: c.letter_grade || '',
+        calculatedScoreRaw: c.grade != null ? String(c.grade) : '',
+        gradeCalculationSummary: Object.entries(c.categories || {}).map(([name, cat]) => ({
+          type: name,
+          weight: `${Math.round((cat.weight || 0) * 100)}%`,
+          points: String(cat.points_earned ?? 0),
+          pointsPossible: String(cat.points_possible ?? 0),
+        })),
+        assignments: (c.assignments || []).map((a) => ({
+          measure: a.name,
+          type: a.kind,
+          date: '',
+          dueDate: '',
+          score: a.points_earned != null ? String(a.points_earned) : null,
+          displayScore: a.points_earned != null ? `${a.points_earned} out of ${a.points_possible}` : 'Not Due',
+          scoreCalValue: a.points_earned,
+          scoreMaxValue: a.points_earned != null ? a.points_possible : null,
+          scoreType: 'Raw Score',
+          points: a.points_earned != null ? `${a.points_earned} / ${a.points_possible}` : `${a.points_possible} Points Possible`,
+          point: a.points_earned,
+          pointPossible: a.points_earned != null ? a.points_possible : null,
+          notes: '',
+          measureDescription: '',
+        })),
+      }],
+    }));
+    return {
+      reportingPeriods: periods,
+      reportingPeriod: periods[rpIndex] ? { ...periods[rpIndex], index: String(rpIndex) } : null,
+      courses,
+    };
+  }
+
+  /* -- Login with automatic mode selection -- */
+
+  async login(username, password) {
+    this.username = String(username).trim();
+    this.password = String(password);
+
+    const hasWorker = !!getConfiguredWorkerUrl();
+
+    // 1. Worker configured (or non-MCPS district): proxied JSON API — full features
+    if (hasWorker || !this.isMCPS()) {
+      try {
+        await this.#jsonLogin();
+        this.mode = 'json';
+        return this;
+      } catch (e) {
+        if (e instanceof UnauthorizedError) throw e;
+        if (this.isMCPS()) {
+          // proxies dead — public relay saves the day
+          try {
+            await this.#svueValidate();
+            this.mode = 'svue';
+            return this;
+          } catch (e2) {
+            if (e2 instanceof UnauthorizedError) throw e2;
+            throw e;
+          }
+        }
+        throw e;
+      }
+    }
+
+    // 2. MCPS without a worker: zero-setup public relay first (fast + reliable)
+    try {
+      await this.#svueValidate();
+      this.mode = 'svue';
+      return this;
+    } catch (e) {
+      if (e instanceof UnauthorizedError) throw e; // wrong credentials — don't retry with them
+      // relay down? fall back to the public-proxy JSON path
+      try {
+        await this.#jsonLogin();
+        this.mode = 'json';
+        return this;
+      } catch (e2) {
+        if (e2 instanceof UnauthorizedError) throw e2;
+        throw e;
+      }
+    }
+  }
+
+  async #jsonLogin() {
+    const data = await this.#json('AttemptLogin', { userID: null, password: null, userType: 'Student' }, 'basic');
+    if (!data || !data.access_token) throw new Error('Login failed — no token returned.');
+    this.token = data.access_token;
+    this.refresh = data.refresh_token || null;
+  }
+
+  /* Opportunistic proxied JSON call from svue mode (attendance, document content).
+     Cached so we only pay the proxy-failure cost once per session. */
+  async #proxiedJSONOnce(method, request) {
+    if (this.proxyJSONFailed) throw new ApiError('unavailable', 'norelay');
+    try {
+      if (!this.token) await this.#jsonLogin();
+      return await this.#json(method, request);
+    } catch (e) {
+      if (e instanceof UnauthorizedError && this.token) {
+        try { await this.#refreshToken(); return await this.#json(method, request); } catch { /* below */ }
+      }
+      this.proxyJSONFailed = true;
+      this.token = null;
+      throw new ApiError('unavailable', 'norelay');
+    }
   }
 
   /* -- JSON API -- */
@@ -234,16 +390,6 @@ export class StudentVue {
     return data;
   }
 
-  async login(username, password) {
-    this.username = String(username).trim();
-    this.password = String(password);
-    const data = await this.#json('AttemptLogin', { userID: null, password: null, userType: 'Student' }, 'basic');
-    if (!data || !data.access_token) throw new Error('Login failed — no token returned.');
-    this.token = data.access_token;
-    this.refresh = data.refresh_token || null;
-    return this;
-  }
-
   async #refreshToken() {
     if (!this.refresh) throw new UnauthorizedError();
     const key = await getVersionKey();
@@ -270,7 +416,7 @@ export class StudentVue {
   /* Unified dispatch: JSON first (with token refresh), SOAP fallback on 2100/400.
      Returns the FULL JSON envelope, or the converted SOAP payload (callers unwrap). */
   async #tryJson(method, request, soapFallback) {
-    if (this.soapMode) return soapFallback();
+    if (this.mode === 'soap') return soapFallback();
     try {
       return await this.#json(method, request);
     } catch (e) {
@@ -284,16 +430,20 @@ export class StudentVue {
       }
       // JSON API not enabled at this district? switch to SOAP mode permanently.
       if (e instanceof ApiError && (e.code === '2100' || e.code === '400')) {
-        this.soapMode = true;
+        this.mode = 'soap';
         return soapFallback();
       }
       throw e;
     }
   }
 
-  /* -- Public data methods (JSON-shaped results, whether via JSON or SOAP) -- */
+  /* -- Public data methods (uniform internal shapes across all modes) -- */
 
   async gradebook(reportPeriod) {
+    if (this.mode === 'svue') {
+      const data = await this.#svueFetch(`/grades${reportPeriod != null ? `?report_period=${Number(reportPeriod)}` : ''}`);
+      return this.svueGradebookToInternal(data);
+    }
     const req = {
       reportPeriod: reportPeriod != null ? String(reportPeriod) : '',
       concurrentSchOrgYearGU: '',
@@ -301,19 +451,49 @@ export class StudentVue {
       languageCode: 'en',
     };
     const data = await this.#tryJson('Gradebook', req, () => this.#soapGradebook(reportPeriod));
-    return this.soapMode ? (data || null) : (data?.data?.traditionalGradebook || null);
+    return this.mode === 'soap' ? (data || null) : (data?.data?.traditionalGradebook || null);
   }
 
   async schedule(termIndex) {
     if (this.loadedSchedule.has(termIndex)) return this.loadedSchedule.get(termIndex);
-    const req = {
-      childIntID: 0, loadAllTerms: true,
-      conSchOrgYearGU: '', conSchTermIndex: '-1', termIndex: termIndex != null ? String(termIndex) : '-1',
-    };
-    const data = await this.#tryJson('StudentClassList', req, () => this.#soapSchedule(termIndex));
-    const schedule = this.soapMode
-      ? data
-      : (data?.data?.studentClassScheduleForAllTerms || data?.data?.studentClassSchedule || null);
+    let schedule;
+    if (this.mode === 'svue') {
+      const idx = termIndex != null ? termIndex : -1;
+      const data = await this.#svueFetch(`/schedule?term_index=${Number(idx)}`);
+      const termNames = data.terms || [];
+      const classes = (data.classes || []).map((c) => ({
+        period: c.period, courseTitle: c.name, roomName: c.room,
+        teacher: c.teacher, teacherEmail: '',
+      }));
+      schedule = {
+        termLists: termNames.map((name, i) => ({ termIndex: i, termName: name, beginDate: '', endDate: '' })),
+        studentClassScheduleForTerms: termNames.map((name, i) => ({
+          thisTermIndex: i,
+          classLists: i === (termIndex != null ? termIndex : (data.term_index != null && data.term_index >= 0 ? data.term_index : 0)) ? classes : [],
+        })),
+      };
+      // Only the requested term has classes; fetch others lazily when selected
+      if (termIndex == null) {
+        for (let i = 0; i < termNames.length; i++) {
+          if (i === 0) continue;
+          try {
+            const t = await this.#svueFetch(`/schedule?term_index=${i}`);
+            schedule.studentClassScheduleForTerms[i].classLists = (t.classes || []).map((c) => ({
+              period: c.period, courseTitle: c.name, roomName: c.room, teacher: c.teacher, teacherEmail: '',
+            }));
+          } catch { /* leave empty */ }
+        }
+      }
+    } else {
+      const req = {
+        childIntID: 0, loadAllTerms: true,
+        conSchOrgYearGU: '', conSchTermIndex: '-1', termIndex: termIndex != null ? String(termIndex) : '-1',
+      };
+      const data = await this.#tryJson('StudentClassList', req, () => this.#soapSchedule(termIndex));
+      schedule = this.mode === 'soap'
+        ? data
+        : (data?.data?.studentClassScheduleForAllTerms || data?.data?.studentClassSchedule || null);
+    }
     this.loadedSchedule.set(termIndex, schedule);
     this.loadedSchedule.set(null, schedule);
     return schedule;
@@ -321,32 +501,77 @@ export class StudentVue {
 
   async attendance() {
     if (this.loadedAttendance) return this.loadedAttendance;
-    const data = await this.#tryJson('GetStudentAttendanceList', { childIntID: 0 }, () => this.#soapAttendance());
-    const att = this.soapMode ? data : (data?.data?.periodAttendance || null);
+    let att;
+    if (this.mode === 'svue') {
+      // Attendance isn't exposed by the public relay — try the proxied JSON API once.
+      try {
+        const data = await this.#proxiedJSONOnce('GetStudentAttendanceList', { childIntID: 0 });
+        att = data?.data?.periodAttendance || null;
+        if (!att) throw new ApiError('unavailable', 'norelay');
+      } catch {
+        throw new ApiError(
+          'Attendance needs a full connection to the StudentVUE server. Deploy the free one-click relay from Settings → Proxy relay (takes ~2 minutes), then sign out and back in.',
+          'norelay');
+      }
+    } else {
+      const data = await this.#tryJson('GetStudentAttendanceList', { childIntID: 0 }, () => this.#soapAttendance());
+      att = this.mode === 'soap' ? data : (data?.data?.periodAttendance || null);
+    }
     this.loadedAttendance = att;
     return att;
   }
 
   async documents() {
     if (this.loadedDocuments) return this.loadedDocuments;
-    const data = await this.#tryJson('GetStudentDocuments', { childIntID: 0, languageCode: 'en' }, () => this.#soapDocuments());
-    const docs = this.soapMode ? data : (data?.data?.studentDocuments?.studentDocumentDatas || []);
+    let docs;
+    if (this.mode === 'svue') {
+      const data = await this.#svueFetch('/documents');
+      docs = (Array.isArray(data) ? data : []).map((d) => ({
+        documentGu: d.gu,
+        documentFileName: d.file_name,
+        documentDate: d.date,
+        documentType: 'Document',
+        documentComment: d.name,
+      }));
+    } else {
+      const data = await this.#tryJson('GetStudentDocuments', { childIntID: 0, languageCode: 'en' }, () => this.#soapDocuments());
+      docs = this.mode === 'soap' ? data : (data?.data?.studentDocuments?.studentDocumentDatas || []);
+    }
     this.loadedDocuments = docs;
     return docs;
   }
 
   async documentContent(documentGU) {
+    if (this.mode === 'svue') {
+      // Document downloads go through the proxied JSON API; public relay can't serve them.
+      try {
+        const data = await this.#proxiedJSONOnce('GetStudentDocumentContent', { childIntID: 0, documentGU });
+        const docDatas = data?.data?.studentAttachedDocumentData?.documentDatas || [];
+        return docDatas[0] || null;
+      } catch {
+        throw new ApiError('Document downloads need a full connection. Deploy the free relay from Settings → Proxy relay.', 'norelay');
+      }
+    }
     const data = await this.#tryJson('GetStudentDocumentContent', { childIntID: 0, documentGU }, () => this.#soapDocumentContent(documentGU));
-    if (this.soapMode) return data;
+    if (this.mode === 'soap') return data;
     const docDatas = data?.data?.studentAttachedDocumentData?.documentDatas || [];
     return docDatas[0] || null;
   }
 
   async studentInfo() {
     if (this.loadedStudentInfo) return this.loadedStudentInfo;
-    const data = await this.#tryJson('GetStudentInfoData', { childIntID: 0 }, () => this.#soapStudentInfo());
-    const raw = this.soapMode ? data : (data?.data?.studentInfoXML || data?.data?.studentInfoDetailXML || null);
-    const info = normalizeStudentInfo(raw);
+    let info;
+    if (this.mode === 'svue') {
+      const s = await this.#svueFetch('/student');
+      info = normalizeStudentInfo({
+        formattedName: s.name, permID: s.id, grade: s.grade, gender: s.gender,
+        birthDate: s.birth_date, eMail: s.email, currentSchool: s.school || 'MCPS',
+      });
+    } else {
+      const data = await this.#tryJson('GetStudentInfoData', { childIntID: 0 }, () => this.#soapStudentInfo());
+      const raw = this.mode === 'soap' ? data : (data?.data?.studentInfoXML || data?.data?.studentInfoDetailXML || null);
+      info = normalizeStudentInfo(raw);
+    }
     this.loadedStudentInfo = info;
     return info;
   }
