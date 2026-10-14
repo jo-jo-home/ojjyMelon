@@ -1,9 +1,12 @@
 # ojjyMelon — Complete Build Plan & Implementation Guide
 
-> **STATUS: BUILT, DEPLOYED, AND FULLY VERIFIED** ✅
-> Live at **https://jo-jo-home.github.io/ojjyMelon/** — verified end-to-end with a real MCPS account
-> (login, all 7 classes with live grades, grade editor, optimizer, GPA, schedule, documents, guest mode,
-> dark mode, PWA). Every phase of this plan was executed and tested. This document is preserved as the
+- **STATUS: BUILT, DEPLOYED, AND FULLY VERIFIED** ✅
+> - Site: **https://jo-jo-home.github.io/ojjyMelon/** (GitHub Pages, static PWA)
+> - Built-in relay: **https://ojjymelon-relay.fly.dev/** (fly.io, single auto-stopping machine — full features for every user, zero setup)
+> - Verified end-to-end with a real MCPS account: login, all 7 classes with live grades, grade editor,
+>   optimizer, GPA, schedule, **attendance**, **document downloads**, guest mode, dark mode, PWA,
+>   connection diagnostics (school-filter detection).
+> Every phase of this plan was executed and tested. This document is preserved as the
 > build record and reference for future maintenance.
 
 **ojjyMelon** is a direct clone of [GradeMelon](https://www.grademelon.org/) (by Tinu Vanapamula) — a third-party StudentVUE client for MCPS students — with only two differences: the name and the color theme (ojjyMelon is **blue-themed**). It is a fully static PWA that deploys to **GitHub Pages (`.github.io`)** and works with real MCPS credentials.
