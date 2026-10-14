@@ -1,5 +1,7 @@
-/* ojjyMelon service worker — cache-first for static assets, never cache API calls. */
-const VERSION = 'ojjymelon-v1';
+/* ojjyMelon service worker
+   Strategy: network-first for code (js/, css/) so deploys go live immediately,
+   cache-first for static assets. API/cross-origin traffic is never intercepted. */
+const VERSION = 'ojjymelon-v2';
 const CORE = [
   './',
   './index.html',
@@ -18,33 +20,48 @@ const CORE = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));
+  e.waitUntil(
+    caches.open(VERSION)
+      .then((c) => Promise.allSettled(CORE.map((u) => c.add(new Request(u, { cache: 'reload' })))))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k))))
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
 
+const isCode = (url) => url.pathname.includes('/js/') || url.pathname.endsWith('.js') || url.pathname.endsWith('.css') || url.pathname.endsWith('index.html');
+
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
-  // Never intercept API or cross-origin traffic (proxies, fonts, CDN)
-  if (url.origin !== self.location.origin) return;
+  if (url.origin !== self.location.origin) return;   // never touch API/proxies/CDN
   if (url.pathname.includes('/api/')) return;
   if (e.request.method !== 'GET') return;
 
-  e.respondWith(
-    caches.match(e.request, { ignoreSearch: url.pathname.endsWith('/') }).then((cached) => {
-      const fetched = fetch(e.request).then((res) => {
-        if (res && res.ok) {
-          const copy = res.clone();
-          caches.open(VERSION).then((c) => c.put(e.request, copy));
-        }
-        return res;
-      }).catch(() => cached);
-      return cached || fetched;
-    })
-  );
+  // Network-first for code; cache-first for everything else.
+  const strategy = isCode(url) ? 'network-first' : 'cache-first';
+  e.respondWith((async () => {
+    const cached = await caches.match(e.request, { ignoreSearch: url.pathname.endsWith('/') });
+    if (strategy === 'cache-first' && cached) {
+      // refresh in the background
+      fetch(e.request).then((res) => { if (res && res.ok) caches.open(VERSION).then((c) => c.put(e.request, res)); }).catch(() => {});
+      return cached;
+    }
+    try {
+      const res = await fetch(e.request);
+      if (res && res.ok) {
+        const copy = res.clone();
+        caches.open(VERSION).then((c) => c.put(e.request, copy));
+      }
+      return res;
+    } catch (err) {
+      if (cached) return cached;
+      throw err;
+    }
+  })());
 });
