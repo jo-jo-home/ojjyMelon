@@ -1,0 +1,143 @@
+import { doLogin, enterGuestMode, state } from '../main.js';
+import { DISTRICTS } from '../districts.js';
+import { toast, errorToast, openModal, escapeHTML, $ } from '../ui.js';
+
+export function renderLogin(view, params) {
+  const defaultDistrict = DISTRICTS.find((d) => d.parentVueUrl === state.districtURL) || DISTRICTS.find((d) => d.parentVueUrl.includes('md-mcps')) || DISTRICTS[0];
+  let selectedURL = defaultDistrict.parentVueUrl;
+  let selectedName = defaultDistrict.name;
+
+  view.innerHTML = `
+  <div class="login-wrap">
+    <div class="card login-card">
+      <h1>Sign in to your account</h1>
+      <form id="login-form" novalidate>
+        <div class="field">
+          <label for="username">Student ID</label>
+          <input id="username" class="input" type="text" autocomplete="username" placeholder="Your student ID" required>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input id="password" class="input" type="password" autocomplete="current-password" placeholder="••••••••" required>
+        </div>
+        <div class="field checkbox-row">
+          <input id="remember" type="checkbox">
+          <label for="remember" style="margin:0">Remember me</label>
+        </div>
+        <button type="button" id="district-btn" class="btn btn-secondary btn-block">${escapeHTML(selectedName)}</button>
+        <button type="submit" id="login-submit" class="btn btn-primary btn-block" style="margin-top:12px">Sign in</button>
+        <p id="login-error" class="hidden" style="color:var(--red);font-size:.85rem;margin:12px 0 0;text-align:center"></p>
+      </form>
+      <div class="login-links">
+        <a href="#/grades?guest=true" id="guest-link">Login as guest</a>
+        <a href="#" id="trouble-link">Having trouble?</a>
+      </div>
+    </div>
+  </div>`;
+
+  const form = $('#login-form', view);
+  const submit = $('#login-submit', view);
+  const errEl = $('#login-error', view);
+  let busy = false;
+
+  const fail = (msg) => {
+    errEl.textContent = msg;
+    errEl.classList.remove('hidden');
+    submit.disabled = false;
+    submit.innerHTML = 'Sign in';
+    busy = false;
+  };
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (busy) return;
+    errEl.classList.add('hidden');
+    const username = $('#username', view).value.trim();
+    const password = $('#password', view).value;
+    if (!username || !password) return fail('Please enter both your student ID and password.');
+    busy = true;
+    submit.disabled = true;
+    submit.innerHTML = '<span class="spinner" style="width:18px;height:18px;border-width:3px;margin:0"></span> Signing in…';
+    try {
+      await doLogin(username, password, $('#remember', view).checked, selectedURL);
+      toast('Welcome back! Loading your grades…', 'success');
+      location.hash = '#/grades';
+    } catch (err) {
+      const msg = friendlyError(err);
+      fail(msg);
+    }
+  });
+
+  $('#trouble-link', view).addEventListener('click', (e) => {
+    e.preventDefault();
+    toast('Make sure you can sign in at your school portal first: ' + selectedURL, 'info', 7000);
+  });
+
+  /* District picker modal — zip search + full list (GradeMelon parity) */
+  $('#district-btn', view).addEventListener('click', () => {
+    const m = openModal({ title: 'Choose School District' });
+    const zip = selectedURL; // remember selection across searches
+    m.body.innerHTML = `
+      <div class="field">
+        <label for="zip-input">Zip Code</label>
+        <div style="display:flex;gap:8px">
+          <input id="zip-input" class="input" type="text" placeholder="20850">
+          <button id="zip-search" class="btn btn-primary">Search</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="district-select">School Districts</label>
+        <select id="district-select" class="select" size="12" style="min-width:100%"></select>
+      </div>`;
+    const select = $('#district-select', m.body);
+    const fill = (list, zipMode) => {
+      select.innerHTML = '';
+      for (const d of list) {
+        const opt = document.createElement('option');
+        opt.value = d.parentVueUrl;
+        opt.textContent = `${d.name} — ${d.address}`;
+        if (d.parentVueUrl === zip) opt.selected = true;
+        select.appendChild(opt);
+      }
+      if (!list.length) {
+        const opt = document.createElement('option');
+        opt.disabled = true;
+        opt.textContent = zipMode ? 'No districts found for that zip code' : '';
+        select.appendChild(opt);
+      }
+    };
+    fill(DISTRICTS);
+    $('#zip-search', m.body).addEventListener('click', () => {
+      const z = $('#zip-input', m.body).value.trim();
+      if (!/^\d{5}$/.test(z)) { errorToast('Enter a 5-digit zip code.'); return; }
+      const matches = DISTRICTS.filter((d) => d.address.endsWith(' ' + z));
+      fill(matches.length ? matches : DISTRICTS.filter((d) => d.address.includes(z)), true);
+    });
+    select.addEventListener('change', () => {
+      selectedURL = select.value;
+      const d = DISTRICTS.find((x) => x.parentVueUrl === selectedURL);
+      selectedName = d ? d.name : selectedURL;
+      $('#district-btn', view).textContent = selectedName;
+      m.close();
+    });
+    const foot = document.createElement('div');
+    foot.className = 'modal-foot';
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'btn btn-secondary';
+    closeBtn.textContent = 'Close';
+    closeBtn.onclick = () => m.close();
+    foot.appendChild(closeBtn);
+    m.modal.appendChild(foot);
+  });
+}
+
+function friendlyError(err) {
+  const msg = String(err?.message || '');
+  if (/Invalid user|password|credential|sign in again|session expired/i.test(msg)) {
+    return 'Invalid student ID or password. (Make sure you use the same login as the StudentVUE app.)';
+  }
+  if (/locked|attempt/i.test(msg)) return 'Too many attempts — your account may be temporarily locked. Try again in a few minutes.';
+  if (/proxy|network|fetch|Failed/i.test(msg)) return 'Could not reach the StudentVUE server. Check your connection and try again — or set a proxy in Settings if this keeps happening.';
+  if (/UPD5304|upgraded/i.test(msg)) return 'The school server refused the request (version check). Try again — if it persists, update the access key in Settings.';
+  return msg || 'Something went wrong while signing in. Please try again.';
+}

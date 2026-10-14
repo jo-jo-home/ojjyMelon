@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#1e3a8a"/>
+    </linearGradient>
+    <linearGradient id="flesh2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#60a5fa"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <g transform="translate(0,26)">
+    <path d="M96 300 A160 160 0 0 1 416 300 L96 300 Z" fill="#1e3a8a"/>
+    <path d="M124 300 A132 132 0 0 1 388 300 L124 300 Z" fill="url(#flesh2)"/>
+    <path d="M150 300 A106 106 0 0 1 362 300 L150 300 Z" fill="#93c5fd" opacity="0.35"/>
+    <g fill="#eff6ff">
+      <ellipse cx="256" cy="222" rx="12" ry="20"/>
+      <ellipse cx="205" cy="255" rx="11" ry="18" transform="rotate(18 205 255)"/>
+      <ellipse cx="307" cy="255" rx="11" ry="18" transform="rotate(-18 307 255)"/>
+    </g>
+  </g>
+</svg>

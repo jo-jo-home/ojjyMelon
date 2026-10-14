@@ -1,0 +1,10 @@
+# Research materials (cloned reference repos — kept local, never deployed)
+research/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Local dev
+node_modules/
+*.log
