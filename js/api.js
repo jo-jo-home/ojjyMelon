@@ -458,9 +458,12 @@ export class StudentVue {
     if (this.loadedSchedule.has(termIndex)) return this.loadedSchedule.get(termIndex);
     let schedule;
     if (this.mode === 'svue') {
-      const idx = termIndex != null ? termIndex : -1;
-      const data = await this.#svueFetch(`/schedule?term_index=${Number(idx)}`);
+      // Fetch ONLY the requested term — other terms load lazily when selected.
+      const idx = termIndex != null ? Number(termIndex) : -1;
+      const data = await this.#svueFetch(`/schedule?term_index=${idx}`);
       const termNames = data.terms || [];
+      const currentIdx = termIndex != null ? termIndex
+        : (data.term_index != null && data.term_index >= 0 ? data.term_index : 0);
       const classes = (data.classes || []).map((c) => ({
         period: c.period, courseTitle: c.name, roomName: c.room,
         teacher: c.teacher, teacherEmail: '',
@@ -469,21 +472,9 @@ export class StudentVue {
         termLists: termNames.map((name, i) => ({ termIndex: i, termName: name, beginDate: '', endDate: '' })),
         studentClassScheduleForTerms: termNames.map((name, i) => ({
           thisTermIndex: i,
-          classLists: i === (termIndex != null ? termIndex : (data.term_index != null && data.term_index >= 0 ? data.term_index : 0)) ? classes : [],
+          classLists: i === Number(currentIdx) ? classes : null, // null = not loaded yet
         })),
       };
-      // Only the requested term has classes; fetch others lazily when selected
-      if (termIndex == null) {
-        for (let i = 0; i < termNames.length; i++) {
-          if (i === 0) continue;
-          try {
-            const t = await this.#svueFetch(`/schedule?term_index=${i}`);
-            schedule.studentClassScheduleForTerms[i].classLists = (t.classes || []).map((c) => ({
-              period: c.period, courseTitle: c.name, roomName: c.room, teacher: c.teacher, teacherEmail: '',
-            }));
-          } catch { /* leave empty */ }
-        }
-      }
     } else {
       const req = {
         childIntID: 0, loadAllTerms: true,

@@ -4,9 +4,8 @@ import { spinnerHTML, escapeHTML, emptyStateHTML } from '../ui.js';
 export async function renderSchedule(view) {
   view.innerHTML = spinnerHTML(true);
   let schedule;
-  let termIndex = null;
   try {
-    schedule = await state.client.schedule(null); // all terms
+    schedule = await state.client.schedule(null); // term list + current/default term
   } catch (e) {
     view.innerHTML = emptyStateHTML('', 'Could not load your schedule', e.message || 'Please try again.');
     createError(e.message);
@@ -14,18 +13,39 @@ export async function renderSchedule(view) {
   }
 
   const terms = schedule?.termLists || [];
-  const classesByTerm = () => {
-    // loadAllTerms shape: studentClassScheduleForTerms[].classLists
-    if (Array.isArray(schedule?.studentClassScheduleForTerms)) {
-      return schedule.studentClassScheduleForTerms;
-    }
+
+  const byTerm = () => {
+    if (Array.isArray(schedule?.studentClassScheduleForTerms)) return schedule.studentClassScheduleForTerms;
     return [{ thisTermIndex: schedule?.termIndex ?? 0, classLists: schedule?.classLists || [] }];
   };
-  const byTerm = classesByTerm();
 
-  function render(termIdx) {
+  function findEntry(termIdx) {
+    const list = byTerm();
+    return list.find((e) => Number(e.thisTermIndex) === Number(termIdx)) || list[0];
+  }
+
+  async function ensureTerm(termIdx) {
+    let entry = findEntry(termIdx);
+    if (entry && entry.classLists != null) return entry;
+    // This term isn't loaded yet (svue lazy mode) — fetch just it
+    try {
+      const s2 = await state.client.schedule(Number(termIdx));
+      const fresh = Array.isArray(s2?.studentClassScheduleForTerms)
+        ? s2.studentClassScheduleForTerms.find((e) => Number(e.thisTermIndex) === Number(termIdx))
+        : { thisTermIndex: termIdx, classLists: s2?.classLists || [] };
+      if (fresh) {
+        if (entry) entry.classLists = fresh.classLists;
+        else schedule.studentClassScheduleForTerms.push(fresh);
+      }
+    } catch (e) {
+      createError(e.message);
+    }
+    return findEntry(termIdx);
+  }
+
+  async function render(termIdx) {
     const term = terms.find((t) => Number(t.termIndex) === Number(termIdx)) || terms[0];
-    const entry = byTerm.find((e) => Number(e.thisTermIndex) === Number(termIdx)) || byTerm[0];
+    const entry = await ensureTerm(termIdx);
     const classes = entry?.classLists || [];
     view.innerHTML = `
       <h2 class="toolbar-title">Schedule</h2>
@@ -37,7 +57,7 @@ export async function renderSchedule(view) {
           </select>
         </div>
       </div>
-      ${term ? `<p class="muted" style="margin:0 0 16px;font-size:.85rem">${escapeHTML(term.beginDate)} – ${escapeHTML(term.endDate)}${state.guest ? ' · sample data' : ''}</p>` : ''}
+      ${term && term.beginDate ? `<p class="muted" style="margin:0 0 16px;font-size:.85rem">${escapeHTML(term.beginDate)} – ${escapeHTML(term.endDate)}${state.guest ? ' · sample data' : ''}</p>` : ''}
       <div class="table-wrap">
         <table class="data">
           <thead><tr><th>Period</th><th>Course Name</th><th>Room</th><th>Teacher</th></tr></thead>
@@ -52,9 +72,13 @@ export async function renderSchedule(view) {
           </tbody>
         </table>
       </div>`;
-    view.querySelector('#term-select').addEventListener('change', (e) => render(Number(e.target.value)));
+    view.querySelector('#term-select').addEventListener('change', async (e) => {
+      const sel = e.target;
+      sel.disabled = true;
+      await render(Number(sel.value));
+    });
   }
 
   const initial = terms[0]?.termIndex ?? 0;
-  render(initial);
+  await render(initial);
 }
