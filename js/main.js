@@ -314,7 +314,7 @@ async function boot() {
   initTheme();
   bindChrome();
   initPWA();
-  window.addEventListener('hashchange', () => { route(); updateChrome(); });
+  window.addEventListener('hashchange', () => { route().then(() => updateChrome()).catch(() => {}); });
 
   const { name } = currentRoute();
   if (name === 'login' || name === 'home' || name === 'privacy' || name === 'faq') {

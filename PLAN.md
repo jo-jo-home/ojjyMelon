@@ -58,6 +58,7 @@ The server (`md-mcps-psv.edupoint.com`) is Synergy 2026-MD.r-MCPS1. Two API gene
 - ❌ **PXP2 web scraping** — MCPS web login is **Google SSO only** (verified: login page has no credential form; SAML config `ShowLoginButtonForStudentVUE=false`, Google SSO only). Not cloneable.
 - ✅ **New JSON mobile API** (`StudentVUE (New)` app, com.edupoint.studentvue v2.0.16): `POST /api/v1/mobile/PXPWebServices/<Method>` — Basic auth at login → Bearer token.
 - ✅ **SOAP MultiWeb wrapper** (`ProcessWebServiceRequestMultiWeb` on `/Service/PXPCommunication.asmx`) with credentials in each envelope — still works for student data too (stateless, no session needed!).
+- ✅ **Public svue-api relay** (`axum-svue.fly.dev`, CORS-enabled, MCPS-only, HTTP Basic on GET endpoints `/grades?report_period=N`, `/student`, `/schedule?term_index=N`, `/documents`, `/akey`) — the zero-setup fallback that makes ojjyMelon work on GitHub Pages with no relay deployed. (Its `/attendance`, `/document`, `/photo` endpoints are broken for MCPS — those features need the proxied path.)
 
 **The gate (verified):** every authenticated call must present the **`edupointkeyversion`** value (a 32-byte base64 constant served by a public endpoint). Without it the server returns `UPD5304-00: "We have upgraded our server for better performance. You must update app to the new version to continue."`. With it, everything works.
 
@@ -138,14 +139,18 @@ ojjyMelon/
 └── docs/PLAN.md               # this file
 ```
 
-### 2.3 Data & auth flow
+### 2.3 Data & auth flow (as-built)
 
-1. **Login**: fetch key (cached in `localStorage` w/ 12h TTL + last-known fallback) → `AttemptLogin` (Basic) via proxy chain → store `{token, refresh, username, district}` in memory; if "remember me", store credentials in `localStorage` (obfuscated by base64+XOR with a device key — documented as convenience-only, same trust model as GradeMelon's cookie) → fetch Gradebook, StudentInfo in parallel.
-2. **Grades view**: `Gradebook` for the selected `reportPeriod` (default = server's current). Parse `traditionalGradebook` → courses, marks, categories (from `gradeCalculationSummary`), assignments. All client-side grade math mirrors GradeMelon.
-3. **Course view**: same data, per-course; edits recalc categories/course/GPA locally (never written back — like GradeMelon).
-4. **Attendance/Schedule/Documents/Info**: one call each; cached in-memory per session (like GradeMelon's `client.loaded*`).
-5. **401 anywhere** → `RefreshToken` once, retry, else force re-login.
-6. **Logout** clears memory + storage; guest mode swaps in sample data and disables editing side effects (editing still works — it's local).
+1. **Login**: fetch key (cached 12h + last-known fallback) → automatic mode selection:
+   - Relay configured (or non-MCPS district) → **JSON mode**: `AttemptLogin` (Basic, via proxy chain) → Bearer token. On proxy failure for MCPS → fall back to svue mode.
+   - MCPS without a relay → **svue mode** (zero-setup): validate via the public relay, then use its parsed endpoints. Attendance & document downloads attempt the proxied JSON path opportunistically (once per session) and degrade to clear notices if no relay is available.
+   - JSON API disabled (error 2100/400) → **SOAP mode** (MultiWeb wrapper + key cookie, injected by the relay from `x-ojjy-key`).
+   - "Remember me" stores credentials base64-obfuscated in `localStorage` (convenience only, clearly disclosed; logout wipes).
+2. **Grades view**: gradebook for the selected `reportPeriod` (svue: `?report_period=N`). All modes normalize to the same internal model, so `parseGrades` + views are identical everywhere.
+3. **Course view**: per-course; edits recalc categories/course/GPA locally (never written back — like GradeMelon).
+4. **Attendance/Schedule/Documents/Info**: one call each; cached in memory per session (mirrors GradeMelon's `client.loaded*`).
+5. **401 anywhere** → `RefreshToken` once, retry, else force re-login. Boot auto-login is gated so hash navigation mid-sign-in can't bounce to the login page.
+6. **Logout** clears memory + storage; guest mode swaps in sample data through the same client interface.
 
 ### 2.4 Grade math spec (exact GradeMelon behavior, MCPS-correct weighting)
 
