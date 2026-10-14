@@ -6,9 +6,9 @@ export async function renderSettings(view) {
   const keyInfo = getStoredKeyInfo();
   const mode = state.client?.mode || (state.guest ? 'guest' : null);
   const modeLabel = {
-    svue: 'Zero-setup public relay (fast, no configuration — attendance & document downloads need your own relay)',
-    json: 'Full connection via StudentVUE JSON API (through your relay/proxy chain)',
-    soap: 'Full connection via Synergy SOAP API (through your relay/proxy chain)',
+    svue: 'Zero-setup public relay (fast, no configuration — attendance & document downloads need the hosted relay)',
+    json: 'Full connection via the StudentVUE JSON API (through the built-in hosted relay or your own relay)',
+    soap: 'Full connection via Synergy SOAP API (through the built-in hosted relay or your own relay)',
     guest: 'Guest mode — sample data only',
   }[mode] || 'Not signed in';
 

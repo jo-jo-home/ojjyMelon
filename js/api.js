@@ -93,22 +93,33 @@ export async function getVersionKey() {
 
 /* ---------- Proxy chain ---------- */
 /* Each proxy is a function (url, init) -> fetch-like call. */
-function userWorkerProxy(workerUrl) {
-  // Worker contract: GET  <worker>/ping          -> "ok"
-  //                  POST <worker>/relay?url=..  -> forwards method/headers/body
-  const base = workerUrl.replace(/\/+$/, '');
+/* Built-in hosted relay (deployed on fly.io — see worker/README).
+   Gives every ojjyMelon user the full feature set with zero setup. */
+const BUILTIN_RELAY = 'https://ojjymelon-relay.fly.dev';
+
+function relayProxy(relayUrl, name) {
+  // Relay contract: GET  <relay>/ping          -> "ok"
+  //                 POST <relay>/relay?url=.. -> forwards method/headers/body
+  const base = relayUrl.replace(/\/+$/, '');
   return {
-    name: 'worker',
+    name,
     fetch: async (url, init) => {
-      const res = await fetch(`${base}/relay?url=${encodeURIComponent(url)}`, {
+      const res = await fetchWithTimeout(`${base}/relay?url=${encodeURIComponent(url)}`, {
         method: init.method || 'GET',
         headers: init.headers,
         body: init.body,
-      });
-      if (res.status === 404 || res.status === 502) throw new ProxyError('worker');
+      }, 25000);
+      if (res.status === 404 || res.status === 502) throw new ProxyError(name);
       return res;
     },
   };
+}
+
+function fetchWithTimeout(url, init = {}, ms = 15000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { ...init, signal: ctrl.signal })
+    .finally(() => clearTimeout(timer));
 }
 
 const publicProxies = [
@@ -155,12 +166,14 @@ let workingProxy = null; // remember what worked to avoid re-probing every call
 
 async function proxiedFetch(url, init = {}) {
   const attempts = [];
-  // 1. direct — works for districts that allow CORS (MCPS does not)
-  attempts.push({ name: 'direct', fetch: (u, i) => fetch(u, i) });
-  // 2. user-configured worker
+  // 1. user-configured relay (highest priority)
   const workerUrl = getConfiguredWorkerUrl();
-  if (workerUrl) attempts.push(userWorkerProxy(workerUrl));
-  // 3. public proxies
+  if (workerUrl) attempts.push(relayProxy(workerUrl, 'user-relay'));
+  // 2. built-in hosted relay (full features, zero setup)
+  attempts.push(relayProxy(BUILTIN_RELAY, 'hosted-relay'));
+  // 3. direct — works for districts that allow CORS (MCPS does not)
+  attempts.push({ name: 'direct', fetch: (u, i) => fetch(u, i) });
+  // 4. public proxies
   attempts.push(...publicProxies);
 
   // try the last known-good proxy first
@@ -291,53 +304,31 @@ export class StudentVue {
     this.username = String(username).trim();
     this.password = String(password);
 
-    const hasWorker = !!getConfiguredWorkerUrl();
-
-    // 1. Worker configured (or non-MCPS district): proxied JSON API — full features
-    if (hasWorker || !this.isMCPS()) {
-      try {
-        await this.#jsonLogin();
-        this.mode = 'json';
-        return this;
-      } catch (e) {
-        if (e instanceof UnauthorizedError) throw e;
-        if (this.isMCPS()) {
-          // proxies dead — public relay saves the day
-          try {
-            await this.#svueValidate();
-            this.mode = 'svue';
-            return this;
-          } catch (e2) {
-            if (e2 instanceof UnauthorizedError) throw e2;
-            throw e;
-          }
-        }
-        throw e;
-      }
-    }
-
-    // 2. MCPS without a worker: zero-setup public relay first (fast + reliable)
+    // 1. Full StudentVUE JSON API via the relay chain (user relay → built-in
+    //    hosted relay → direct → public proxies). Complete feature set.
     try {
-      await this.#svueValidate();
-      this.mode = 'svue';
+      await this.#jsonLogin();
+      this.mode = 'json';
       return this;
     } catch (e) {
-      if (e instanceof UnauthorizedError) throw e; // wrong credentials — don't retry with them
-      // relay down or blocked? fall back to the public-proxy JSON path
-      try {
-        await this.#jsonLogin();
-        this.mode = 'json';
-        return this;
-      } catch (e2) {
-        if (e2 instanceof UnauthorizedError) throw e2;
-        // Everything failed: on school Chromebooks the MCPS web filter blocks
-        // all of these endpoints (the same filter that blocked GradeMelon).
-        const err = new ApiError(
-          'Every connection path was blocked. If you are on a school Chromebook, the MCPS web filter is probably blocking ojjyMelon — the same filter that blocked GradeMelon. Try a personal device (phone / home computer), or open Settings → Connection check to see exactly what is blocked on this network.',
-          'all-blocked');
-        err.allBlocked = true;
-        throw err;
+      if (e instanceof UnauthorizedError) throw e; // wrong credentials
+      // 2. MCPS fallback: zero-setup public relay (grades/schedule/documents)
+      if (this.isMCPS()) {
+        try {
+          await this.#svueValidate();
+          this.mode = 'svue';
+          return this;
+        } catch (e2) {
+          if (e2 instanceof UnauthorizedError) throw e2;
+        }
       }
+      // Everything failed: on school Chromebooks the MCPS web filter blocks
+      // all of these endpoints (the same filter that blocked GradeMelon).
+      const err = new ApiError(
+        'Every connection path was blocked. If you are on a school Chromebook, the MCPS web filter is probably blocking ojjyMelon — the same filter that blocked GradeMelon. Try a personal device (phone / home computer), or open Settings → Connection check to see exactly what is blocked on this network.',
+        'all-blocked');
+      err.allBlocked = true;
+      throw err;
     }
   }
 
@@ -507,7 +498,7 @@ export class StudentVue {
         if (!att) throw new ApiError('unavailable', 'norelay');
       } catch {
         throw new ApiError(
-          'Attendance needs a full connection to the StudentVUE server. Deploy the free one-click relay from Settings → Proxy relay (takes ~2 minutes), then sign out and back in.',
+          'Attendance needs the hosted relay (ojjymelon-relay.fly.dev), which appears blocked or offline on this network. On school Chromebooks the MCPS filter blocks it — try a personal device. See Settings → Connection check.',
           'norelay');
       }
     } else {
@@ -546,7 +537,7 @@ export class StudentVue {
         const docDatas = data?.data?.studentAttachedDocumentData?.documentDatas || [];
         return docDatas[0] || null;
       } catch {
-        throw new ApiError('Document downloads need a full connection. Deploy the free relay from Settings → Proxy relay.', 'norelay');
+        throw new ApiError('Document downloads need the hosted relay (ojjymelon-relay.fly.dev), which appears blocked on this network. Try a personal device, or run Settings → Connection check.', 'norelay');
       }
     }
     const data = await this.#tryJson('GetStudentDocumentContent', { childIntID: 0, documentGU }, () => this.#soapDocumentContent(documentGU));
@@ -846,6 +837,11 @@ export async function diagnoseConnection(districtURL) {
     }
   };
 
+  await test('Built-in hosted relay (full features)', async () => {
+    const status = await reach('https://ojjymelon-relay.fly.dev/ping');
+    if (status === 200) return 'reachable';
+    return 'HTTP ' + status;
+  });
   await test('Access key service', async () => {
     const status = await reach('https://axum-svue.fly.dev/akey');
     return 'HTTP ' + status;
@@ -873,12 +869,14 @@ export async function diagnoseConnection(districtURL) {
     return 'HTTP ' + status;
   });
 
-  const relayOk = results[1].ok;
-  const proxyOk = results[3].ok;
+  const relayOk = results[0].ok;
+  const svueOk = results[2].ok;
+  const proxyOk = results[4].ok;
   let verdict;
-  if (relayOk) verdict = 'Connections look good — ojjyMelon should be able to sign in.';
-  else if (proxyOk) verdict = 'The zero-setup relay is blocked on this network, but a proxy still works — sign-in may still succeed (slower). For full features, deploy your own relay (Settings → Proxy relay).';
-  else verdict = 'This network blocks every path ojjyMelon needs (key service, relays, and proxies). This is typical on MCPS Chromebooks — the county web filter does the same thing to GradeMelon. Use a personal device (phone or home computer) instead.';
+  if (relayOk) verdict = 'Connections look good — ojjyMelon should be able to sign in with full features.';
+  else if (svueOk) verdict = 'The hosted relay is blocked on this network, but the zero-setup relay works — sign-in will work (attendance and document downloads need the hosted relay).';
+  else if (proxyOk) verdict = 'The relays are blocked on this network, but a public proxy still works — sign-in may succeed (slower, fewer features).';
+  else verdict = 'This network blocks every path ojjyMelon needs (relays, key service, and proxies). This is typical on MCPS Chromebooks — the county web filter does the same thing to GradeMelon. Use a personal device (phone or home computer) instead.';
   return { results, verdict };
 }
 

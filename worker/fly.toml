@@ -1,0 +1,28 @@
+# fly.io configuration for the ojjyMelon relay
+# Deploy:  fly apps create ojjymelon-relay && fly deploy
+# Docs:    see README.md → "Deploy your own relay"
+
+app = "ojjymelon-relay"
+primary_region = "iad"   # Washington DC — closest to MCPS
+
+[env]
+  PORT = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true    # sleeps when idle — near-zero cost
+  auto_start_machines = true   # wakes on first request (~1-3s)
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 50
+    hard_limit = 100
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/ping"
