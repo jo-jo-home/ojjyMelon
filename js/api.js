@@ -323,14 +323,20 @@ export class StudentVue {
       return this;
     } catch (e) {
       if (e instanceof UnauthorizedError) throw e; // wrong credentials — don't retry with them
-      // relay down? fall back to the public-proxy JSON path
+      // relay down or blocked? fall back to the public-proxy JSON path
       try {
         await this.#jsonLogin();
         this.mode = 'json';
         return this;
       } catch (e2) {
         if (e2 instanceof UnauthorizedError) throw e2;
-        throw e;
+        // Everything failed: on school Chromebooks the MCPS web filter blocks
+        // all of these endpoints (the same filter that blocked GradeMelon).
+        const err = new ApiError(
+          'Every connection path was blocked. If you are on a school Chromebook, the MCPS web filter is probably blocking ojjyMelon — the same filter that blocked GradeMelon. Try a personal device (phone / home computer), or open Settings → Connection check to see exactly what is blocked on this network.',
+          'all-blocked');
+        err.allBlocked = true;
+        throw err;
       }
     }
   }
@@ -812,6 +818,62 @@ export class UnauthorizedError extends Error {
 
 export function isAuthError(e) {
   return e instanceof UnauthorizedError || /Invalid user|password/i.test(e?.message || '');
+}
+
+/* ---------- Connection diagnostics (school-filter detector) ---------- */
+/* Tests every network path ojjyMelon needs and reports what's reachable. */
+export async function diagnoseConnection(districtURL) {
+  const district = (districtURL || 'https://md-mcps-psv.edupoint.com').replace(/\/+$/, '');
+  const results = [];
+  const test = async (name, fn) => {
+    try {
+      const detail = await fn();
+      results.push({ name, ok: true, detail: detail || '' });
+    } catch (e) {
+      results.push({ name, ok: false, detail: (e && e.message) || 'unreachable' });
+    }
+  };
+  const reach = async (url, opts = {}) => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    try {
+      const res = await fetch(url, { ...opts, signal: ctrl.signal, cache: 'no-store' });
+      clearTimeout(timer);
+      return res.status;
+    } catch (e) {
+      clearTimeout(timer);
+      throw new Error(/abort/i.test(String(e)) ? 'timed out' : 'blocked or offline');
+    }
+  };
+
+  await test('Access key service', async () => {
+    const status = await reach('https://axum-svue.fly.dev/akey');
+    return 'HTTP ' + status;
+  });
+  await test('Public grade relay (zero-setup)', async () => {
+    const status = await reach('https://axum-svue.fly.dev/student', { headers: { Authorization: 'Basic ' + btoa('x:x') } });
+    if (status === 401 || status === 400) return 'reachable';
+    return 'HTTP ' + status;
+  });
+  await test('District StudentVUE server (direct)', async () => {
+    // Expected to fail with CORS in a browser — this just distinguishes
+    // "server up but CORS-blocked" (TypeError) from "network-blocked".
+    const status = await reach(`${district}/PXP2_Login_Student.aspx`);
+    return 'HTTP ' + status;
+  });
+  await test('Public CORS proxy', async () => {
+    const status = await reach('https://corsproxy.io/?url=' + encodeURIComponent('https://axum-svue.fly.dev/akey'));
+    if (status === 200) return 'reachable';
+    return 'HTTP ' + status;
+  });
+
+  const relayOk = results[1].ok;
+  const proxyOk = results[3].ok;
+  let verdict;
+  if (relayOk) verdict = 'Connections look good — ojjyMelon should be able to sign in.';
+  else if (proxyOk) verdict = 'The zero-setup relay is blocked on this network, but a proxy still works — sign-in may still succeed (slower). For full features, deploy your own relay (Settings → Proxy relay).';
+  else verdict = 'This network blocks every path ojjyMelon needs (key service, relays, and proxies). This is typical on MCPS Chromebooks — the county web filter does the same thing to GradeMelon. Use a personal device (phone or home computer) instead.';
+  return { results, verdict };
 }
 
 export function districtFromZipList(zip, districts) {

@@ -1,7 +1,7 @@
 /* ojjyMelon service worker
    Strategy: network-first for code (js/, css/) so deploys go live immediately,
    cache-first for static assets. API/cross-origin traffic is never intercepted. */
-const VERSION = 'ojjymelon-v2';
+const VERSION = 'ojjymelon-v3';
 const CORE = [
   './',
   './index.html',

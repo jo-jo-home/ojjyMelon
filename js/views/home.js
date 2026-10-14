@@ -66,6 +66,12 @@ export function renderHome(view) {
   </section>
 
   <section class="section">
+    <h2 class="section-title">Privacy Policy</h2>
+    <p class="section-sub">Your data stays in your browser — no servers, no trackers, no databases. Read exactly how it works.</p>
+    <a href="#/privacy" class="btn btn-secondary">Read the privacy policy</a>
+  </section>
+
+  <section class="section">
     <h2 class="section-title">FAQ</h2>
     <p class="section-sub">Have questions? Check out the FAQ page for answers to common questions.</p>
     <a href="#/faq" class="btn btn-secondary">Open the FAQ</a>

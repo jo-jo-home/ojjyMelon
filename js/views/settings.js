@@ -1,5 +1,5 @@
 import { state, logout, createError } from '../main.js';
-import { getConfiguredWorker, setConfiguredWorkerUrl, getStoredKeyInfo, setManualKey, clearManualKey } from '../api.js';
+import { getConfiguredWorker, setConfiguredWorkerUrl, getStoredKeyInfo, setManualKey, clearManualKey, diagnoseConnection } from '../api.js';
 import { escapeHTML, openModal, confirmModal, toast, successToast } from '../ui.js';
 
 export async function renderSettings(view) {
@@ -52,6 +52,13 @@ export async function renderSettings(view) {
       </div>
 
       <div class="card settings-card">
+        <h3>Connection check</h3>
+        <p>Can't sign in? This pings every service ojjyMelon needs and shows exactly what your network blocks — school filters (like the one on MCPS Chromebooks) usually block them all.</p>
+        <button id="run-diagnosis" class="btn btn-primary btn-sm">Run connection check</button>
+        <div id="diagnosis-results" style="margin-top:14px" hidden></div>
+      </div>
+
+      <div class="card settings-card">
         <h3>Account</h3>
         <p>${state.guest ? 'You are in guest mode with sample data.' : 'Signed in as ' + escapeHTML(state.studentInfo?.FormattedName || state.client?.username || 'student') + '.'}</p>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
@@ -95,6 +102,32 @@ export async function renderSettings(view) {
     successToast('Back to automatic key fetching.');
     renderSettings(view);
   });
+  const diagBtn = view.querySelector('#run-diagnosis');
+  diagBtn.addEventListener('click', async () => {
+    const box = view.querySelector('#diagnosis-results');
+    box.hidden = false;
+    box.innerHTML = `<div class="spinner" style="width:26px;height:26px;border-width:3px;margin:6px auto"></div>`;
+    diagBtn.disabled = true;
+    try {
+      const report = await diagnoseConnection(state.districtURL);
+      box.innerHTML = `
+        <table class="data" style="font-size:.85rem">
+          <tbody>
+            ${report.results.map((r) => `
+              <tr>
+                <td style="color:${r.ok ? 'var(--green)' : 'var(--red)'};font-weight:800;white-space:nowrap">${r.ok ? '✓' : '✗'}</td>
+                <td class="cell-strong">${escapeHTML(r.name)}</td>
+                <td style="color:var(--text-faint)">${escapeHTML(r.detail)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+        <p style="font-size:.85rem;color:var(--text-soft);line-height:1.6;margin:12px 0 0">${escapeHTML(report.verdict)}</p>`;
+    } catch (e) {
+      box.innerHTML = `<p style="color:var(--red);font-size:.85rem">Check failed: ${escapeHTML(e.message)}</p>`;
+    }
+    diagBtn.disabled = false;
+  });
+
   view.querySelector('#sign-out').addEventListener('click', async () => {
     if (state.guest || await confirmModal('Sign out?', 'You will need your student ID and password to sign in again (unless you saved them).', 'Sign out')) {
       logout(true);

@@ -186,6 +186,8 @@ button { font-family: inherit; }
 .nav-link.active { background: var(--primary-50); color: var(--primary-600); }
 [data-theme="dark"] .nav-link.active { background: #1e3a8a55; color: var(--primary-300); }
 .sidebar-footer { position: absolute; bottom: 18px; left: 14px; right: 14px; }
+.logout-link { width: 100%; background: none; border: 0; text-align: left; color: var(--red); font-weight: 600; font-size: .95rem; }
+.logout-link:hover { background: #ef444414; color: var(--red); text-decoration: none; }
 .sidebar-note { font-size: .68rem; color: var(--text-faint); line-height: 1.5; margin: 0; }
 
 .view { flex: 1; padding: 28px clamp(16px, 4vw, 40px) 90px; min-width: 0; }

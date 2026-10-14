@@ -1,10 +1,28 @@
 import { escapeHTML } from '../ui.js';
 
+const INSTALL_STEPS_HTML = `
+  <p>Yes, ojjyMelon is a PWA (Progressive Web App).</p>
+  <p><b>To add ojjyMelon to your Home Screen, follow these steps:</b></p>
+  <p style="margin:8px 0 4px"><b>Apple iPhone/iPad</b></p>
+  <ul style="margin:0 0 10px;padding-left:22px;line-height:1.8">
+    <li>Open ojjyMelon in Safari</li>
+    <li>Tap the Share button in the bottom bar</li>
+    <li>Tap "Add to Home Screen"</li>
+  </ul>
+  <p style="margin:8px 0 4px"><b>Android</b></p>
+  <ul style="margin:0;padding-left:22px;line-height:1.8">
+    <li>Open ojjyMelon in Chrome</li>
+    <li>Tap the 3 dots in the top right corner</li>
+    <li>Tap "Add to Home Screen"</li>
+  </ul>
+  <p>On a computer, click the install icon in the address bar (or the install button in ojjyMelon's top bar).</p>`;
+
 const QA = [
   ['What is ojjyMelon?',
    'ojjyMelon is a free third-party web app for viewing and calculating your grades from Synergy StudentVUE — the grade portal used by MCPS and hundreds of other US school districts. It is a tribute clone of the beloved GradeMelon, re-themed in blue and rebuilt to work with the new Synergy servers.'],
-  ['Is ojjyMelon an app?',
-   'It is an installable web app (PWA). On your phone, use your browser\'s "Add to Home Screen" (or the install button) and it will behave like a native app, including working offline for pages you\'ve already visited.'],
+  ['Is ojjyMelon an app?', null, true], // filled with INSTALL_STEPS_HTML
+  ['How do I send feedback regarding ojjyMelon?',
+   'Open a GitHub issue on the repository — bug reports and suggestions are super welcome, and you can read (and even improve) every line of the code yourself.'],
   ['Is it safe to sign in with my school password?',
    'Your password is used only to sign in to your district\'s StudentVUE server, exactly like the official app. Credentials are kept in your browser only — never on our servers (there are no servers). If you skip "Remember me", nothing is stored after you sign out. See the Privacy page for details.'],
   ['Which school districts are supported?',
@@ -21,19 +39,22 @@ const QA = [
    'A student, for students. The full source is available on GitHub — contributions and bug reports are welcome.'],
   ['Grades look different from StudentVUE. Why?',
    'StudentVUE sometimes shows the posted grade, while ojjyMelon recalculates your grade from individual assignment scores (skipping empty categories) — the same approach GradeMelon used. Small rounding differences are normal.'],
+  ['I can\'t sign in on my school Chromebook.',
+   'MCPS Chromebooks run the county web filter, which blocks the third-party connections ojjyMelon needs — the same filter blocked GradeMelon itself on Chromebooks. Use a personal device (your phone, or Chrome on a home computer) and it will work. You can see exactly what your network blocks in Settings → Connection check.'],
 ];
 
-export function renderFaq(view) {
+export function renderFaq(view, params) {
+  const openApp = params && params.get('refer') === 'app';
   view.innerHTML = `
     <h2 class="toolbar-title">FAQ & Info</h2>
     <p class="toolbar-sub">Answers to common questions about ojjyMelon.</p>
     <div style="max-width:760px">
-      ${QA.map(([q, a], i) => `
-        <details class="card" style="margin-bottom:12px;padding:0">
+      ${QA.map(([q, a, isInstall], i) => `
+        <details class="card" style="margin-bottom:12px;padding:0" ${isInstall && openApp ? 'open' : ''}>
           <summary style="cursor:pointer;padding:16px 20px;font-weight:800;list-style:none;display:flex;align-items:center;gap:10px">
             <span style="color:var(--primary-500)">Q${i + 1}.</span> ${escapeHTML(q)}
           </summary>
-          <div style="padding:0 20px 18px;color:var(--text-soft);line-height:1.65;font-size:.92rem">${escapeHTML(a)}</div>
+          <div style="padding:0 20px 18px;color:var(--text-soft);line-height:1.65;font-size:.92rem">${isInstall ? INSTALL_STEPS_HTML : escapeHTML(a)}</div>
         </details>`).join('')}
     </div>`;
 }

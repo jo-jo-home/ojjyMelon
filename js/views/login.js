@@ -27,6 +27,9 @@ export function renderLogin(view, params) {
         <button type="button" id="district-btn" class="btn btn-secondary btn-block">${escapeHTML(selectedName)}</button>
         <button type="submit" id="login-submit" class="btn btn-primary btn-block" style="margin-top:12px">Sign in</button>
         <p id="login-error" class="hidden" style="color:var(--red);font-size:.85rem;margin:12px 0 0;text-align:center"></p>
+        <p id="connection-check-link" class="hidden" style="text-align:center;margin:10px 0 0;font-size:.85rem">
+          <a href="#/settings">Run the connection check →</a>
+        </p>
       </form>
       <div class="login-links">
         <a href="#/grades?guest=true" id="guest-link">Login as guest</a>
@@ -40,9 +43,12 @@ export function renderLogin(view, params) {
   const errEl = $('#login-error', view);
   let busy = false;
 
-  const fail = (msg) => {
+  const fail = (msg, showCheck) => {
     errEl.textContent = msg;
     errEl.classList.remove('hidden');
+    const checkBtn = $('#connection-check-link', view);
+    if (showCheck && checkBtn) checkBtn.classList.remove('hidden');
+    else if (checkBtn) checkBtn.classList.add('hidden');
     submit.disabled = false;
     submit.innerHTML = 'Sign in';
     busy = false;
@@ -63,10 +69,13 @@ export function renderLogin(view, params) {
       toast('Welcome back! Loading your grades…', 'success');
       location.hash = '#/grades';
     } catch (err) {
-      const msg = friendlyError(err);
-      fail(msg);
+      const { msg, check } = friendlyError(err);
+      fail(msg, check);
     }
   });
+
+  const checkLink = $('#connection-check-link', view);
+  if (checkLink) checkLink.addEventListener('click', () => { location.hash = '#/settings'; });
 
   $('#trouble-link', view).addEventListener('click', (e) => {
     e.preventDefault();
@@ -134,10 +143,15 @@ export function renderLogin(view, params) {
 function friendlyError(err) {
   const msg = String(err?.message || '');
   if (/Invalid user|password|credential|sign in again|session expired/i.test(msg)) {
-    return 'Invalid student ID or password. (Make sure you use the same login as the StudentVUE app.)';
+    return { msg: 'Invalid student ID or password. (Make sure you use the same login as the StudentVUE app.)' };
   }
-  if (/locked|attempt/i.test(msg)) return 'Too many attempts — your account may be temporarily locked. Try again in a few minutes.';
-  if (/proxy|network|fetch|Failed/i.test(msg)) return 'Could not reach the StudentVUE server. Check your connection and try again — or set a proxy in Settings if this keeps happening.';
-  if (/UPD5304|upgraded/i.test(msg)) return 'The school server refused the request (version check). Try again — if it persists, update the access key in Settings.';
-  return msg || 'Something went wrong while signing in. Please try again.';
+  if (/locked|attempt/i.test(msg)) return { msg: 'Too many attempts — your account may be temporarily locked. Try again in a few minutes.' };
+  if (err?.allBlocked || /Every connection path|blocked/i.test(msg)) {
+    return { msg, check: true };
+  }
+  if (/proxy|network|fetch|Failed|reach/i.test(msg)) {
+    return { msg: 'Could not reach the StudentVUE server. Check your connection and try again — or run the connection check below.', check: true };
+  }
+  if (/UPD5304|upgraded/i.test(msg)) return { msg: 'The school server refused the request (version check). Try again — if it persists, update the access key in Settings.' };
+  return { msg: msg || 'Something went wrong while signing in. Please try again.' };
 }

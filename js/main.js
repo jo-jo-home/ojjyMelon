@@ -159,7 +159,7 @@ export async function route() {
     case 'home': return renderHome(view);
     case 'login': return renderLogin(view, params);
     case 'privacy': return renderPrivacy(view);
-    case 'faq': return renderFaq(view);
+    case 'faq': return renderFaq(view, params);
     case 'grades': {
       if (params.get('guest') === 'true' && !state.client && !state.guest) {
         enterGuestMode();
@@ -232,6 +232,9 @@ function bindChrome() {
   });
 
   window.addEventListener('resize', updateChrome);
+
+  const sidebarLogout = $('#sidebar-logout');
+  if (sidebarLogout) sidebarLogout.addEventListener('click', () => logout());
 }
 
 /* ---------- Theme ---------- */
@@ -299,6 +302,7 @@ function showPromo(kind, html) {
     el.addEventListener('click', (e) => {
       if (e.target.closest('.promo-x')) return;
       if (deferredPrompt) { deferredPrompt.prompt(); }
+      else { location.hash = '#/faq?refer=app'; } // GradeMelon parity: "Check out how!"
     });
     el.style.cursor = 'pointer';
   }
