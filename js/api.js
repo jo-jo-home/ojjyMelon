@@ -856,10 +856,16 @@ export async function diagnoseConnection(districtURL) {
     return 'HTTP ' + status;
   });
   await test('District StudentVUE server (direct)', async () => {
-    // Expected to fail with CORS in a browser — this just distinguishes
-    // "server up but CORS-blocked" (TypeError) from "network-blocked".
-    const status = await reach(`${district}/PXP2_Login_Student.aspx`);
-    return 'HTTP ' + status;
+    // Expected to fail with CORS in a browser — this distinguishes
+    // "server up but browser-blocked" (instant TypeError) from
+    // "network-filtered" (school filter: timeout / block page).
+    try {
+      const status = await reach(`${district}/PXP2_Login_Student.aspx`);
+      return 'HTTP ' + status;
+    } catch (e) {
+      if (/timed out/i.test(String(e && e.message))) return 'timed out — network may be filtering this';
+      return 'blocked by the browser (normal — CORS)';
+    }
   });
   await test('Public CORS proxy', async () => {
     const status = await reach('https://corsproxy.io/?url=' + encodeURIComponent('https://axum-svue.fly.dev/akey'));
