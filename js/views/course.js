@@ -15,11 +15,11 @@ export async function renderCourse(view, index) {
     return;
   }
 
-  const course2 = structuredCloneish(grades.courses[index]);
+  const course2 = cloneCourse(grades.courses[index]);
 
   function render() {
     const periods = grades.periods.map((p) => `<option value="${p.index}" ${p.index === grades.period.index ? 'selected' : ''}>${escapeHTML(p.name)}</option>`).join('');
-    const totalW = Math.min(course2.grade.raw || 0, 100);
+    const totalW = Math.min(hasGrade(course2.grade.raw) ? course2.grade.raw : 0, 100);
     view.innerHTML = `
       <div class="toolbar">
         <button id="back-btn" class="btn btn-ghost btn-icon" title="Back to grades" aria-label="Back">
@@ -39,12 +39,12 @@ export async function renderCourse(view, index) {
       <p class="toolbar-sub">${escapeHTML(course2.teacher.name)}${course2.room ? ' · Room ' + escapeHTML(course2.room) : ''}${state.guest ? ' · sample data' : ''}</p>
 
       <div style="font-size:1.6rem;font-weight:800" class="${gradeColorClass(course2.grade.letter)}">
-        ${escapeHTML(course2.grade.letter)} ${!isNaN(course2.grade.raw) ? `<span style="font-size:.65em">(${course2.grade.raw}%)</span>` : ''}
+        ${escapeHTML(course2.grade.letter)} ${hasGrade(course2.grade.raw) ? `<span style="font-size:.65em">(${course2.grade.raw}%)</span>` : ''}
       </div>
 
       <div class="pbar-track"><div class="pbar-fill ${pbarColorClass(course2.grade.letter)}" style="width:${totalW}%"><span>Total</span></div></div>
       ${course2.categories.map((cat) => `
-        <div class="pbar-track pbar-cat"><div class="pbar-fill ${pbarColorClass(cat.grade.letter)}" style="width:${Math.min(cat.grade.raw || 0, 100)}%"><span>${escapeHTML(cat.name)} (${isNaN(cat.grade.raw) ? 'N/A' : cat.grade.raw + '%'}) — ${fmtPts(cat.points.earned)}/${fmtPts(cat.points.possible)}</span></div></div>
+        <div class="pbar-track pbar-cat"><div class="pbar-fill ${pbarColorClass(cat.grade.letter)}" style="width:${Math.min(hasGrade(cat.grade.raw) ? cat.grade.raw : 0, 100)}%"><span>${escapeHTML(cat.name)} (${hasGrade(cat.grade.raw) ? cat.grade.raw + '%' : 'N/A'}) — ${fmtPts(cat.points.earned)}/${fmtPts(cat.points.possible)}</span></div></div>
       `).join('')}
 
       <div class="table-wrap" style="margin-top:26px">
@@ -63,10 +63,10 @@ export async function renderCourse(view, index) {
         <td class="score-edit" style="cursor:pointer" data-details="${i}" title="Assignment details">${escapeHTML(a.name)}</td>
         <td>
           <div class="score-cell">
-            <span class="score-val grade-editable" tabindex="0" role="button" data-earned="${i}" title="Click to edit points earned">${a.points.earned != null && !isNaN(a.points.earned) ? a.points.earned : 'NG'}</span>
+            <span class="score-val grade-editable" tabindex="0" role="button" data-earned="${i}" title="Click to edit points earned">${hasGrade(a.points.earned) ? a.points.earned : 'NG'}</span>
             <span class="slash">/</span>
             <span class="score-val grade-editable" tabindex="0" role="button" data-possible="${i}" title="Click to edit points possible">${a.points.possible != null && !isNaN(a.points.possible) ? a.points.possible : 'NG'}</span>
-            <span class="grade-sm ${gradeColorClass(a.grade.letter)}" style="margin-left:6px">${escapeHTML(a.grade.letter)}${!isNaN(a.grade.raw) ? `<span style="font-size:.72em"> ${a.grade.raw}%</span>` : ''}</span>
+            <span class="grade-sm ${gradeColorClass(a.grade.letter)}" style="margin-left:6px">${escapeHTML(a.grade.letter)}${hasGrade(a.grade.raw) ? `<span style="font-size:.72em"> ${a.grade.raw}%</span>` : ''}</span>
           </div>
         </td>
         <td>
@@ -165,8 +165,8 @@ export async function renderCourse(view, index) {
     }
     m.body.innerHTML = `
       <dl class="modal-plain">
-        <dt>Grade</dt><dd class="${gradeColorClass(a.grade.letter)}">${escapeHTML(a.grade.letter)}${!isNaN(a.grade.raw) ? ` (${a.grade.raw}%)` : ''}</dd>
-        <dt>Points</dt><dd>${a.points.earned != null && !isNaN(a.points.earned) ? a.points.earned : 'NG'} / ${a.points.possible != null && !isNaN(a.points.possible) ? a.points.possible : '—'}</dd>
+        <dt>Grade</dt><dd class="${gradeColorClass(a.grade.letter)}">${escapeHTML(a.grade.letter)}${hasGrade(a.grade.raw) ? ` (${a.grade.raw}%)` : ''}</dd>
+        <dt>Points</dt><dd>${hasGrade(a.points.earned) ? a.points.earned : 'NG'} / ${a.points.possible != null && !isNaN(a.points.possible) ? a.points.possible : '—'}</dd>
         <dt>Date Due</dt><dd>${formatDate(a.date.due)}</dd>
         <dt>Category</dt><dd>${escapeHTML(a.category)}</dd>
         ${a.notes ? `<dt>Notes</dt><dd>${escapeHTML(a.notes)}</dd>` : ''}
@@ -249,5 +249,12 @@ export async function renderCourse(view, index) {
   render();
 }
 
-function structuredCloneish(obj) { return JSON.parse(JSON.stringify(obj)); }
+/* Deep clone that preserves NaN/undefined (JSON round-trip does not). */
+function cloneCourse(obj) {
+  if (typeof structuredClone === 'function') {
+    try { return structuredClone(obj); } catch { /* fall through */ }
+  }
+  return JSON.parse(JSON.stringify(obj), (k, v) => (v === null && /raw|earned|possible/.test(k) ? NaN : v));
+}
+function hasGrade(v) { return v != null && !isNaN(v); }
 function fmtPts(n) { return (n != null && !isNaN(n)) ? Number(Number(n).toFixed(2)) : '—'; }
