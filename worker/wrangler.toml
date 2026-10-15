@@ -1,0 +1,6 @@
+name = "ojjymelon-relay"
+main = "ojjymelon-proxy.js"
+compatibility_date = "2026-01-01"
+
+# Free tier: 100,000 requests/day — far more than ojjyMelon needs.
+# Deploy: npx wrangler deploy

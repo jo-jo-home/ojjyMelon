@@ -15,6 +15,7 @@ import { renderAttendance } from './views/attendance.js';
 import { renderDocuments } from './views/documents.js';
 import { renderFaq } from './views/faq.js';
 import { renderPrivacy } from './views/privacy.js';
+import { renderCredits } from './views/credits.js';
 import { renderSettings } from './views/settings.js';
 import { GUEST_GRADES, GUEST_ATTENDANCE, GUEST_SCHEDULE, GUEST_DOCUMENTS, GUEST_STUDENT_INFO } from './views/guestdata.js';
 
@@ -160,6 +161,7 @@ export async function route() {
     case 'login': return renderLogin(view, params);
     case 'privacy': return renderPrivacy(view);
     case 'faq': return renderFaq(view, params);
+    case 'credits': return renderCredits(view);
     case 'grades': {
       if (params.get('guest') === 'true' && !state.client && !state.guest) {
         enterGuestMode();

@@ -83,8 +83,15 @@ export function renderHome(view) {
     <a class="btn btn-secondary" href="https://github.com/jo-jo-home/ojjyMelon/issues" target="_blank" rel="noopener">Open a GitHub issue</a>
   </section>
 
+  <section class="section">
+    <h2 class="section-title">Credits 💙</h2>
+    <p class="section-sub">Big thanks to <b>Jayden</b> — my brother — for giving me the idea for making this. Thank you bro 🙏
+    And to <b>The Fool</b> for the general advice — without him, this could not have been possible.</p>
+    <a href="#/credits" class="btn btn-secondary">See all credits →</a>
+  </section>
+
   <footer class="footer">
-    <span>© ${new Date().getFullYear()} ojjyMelon — a third-party tool. Not affiliated with Edupoint, Synergy, or Montgomery County Public Schools. StudentVUE is a registered trademark of Edupoint.</span>
-    <span><a href="#/privacy">Privacy</a> · <a href="#/faq">FAQ</a> · <a href="#/login">Sign in</a></span>
+    <span>© ${new Date().getFullYear()} ojjyMelon — Made by Jonas, Jayden's brother :) ❤️ — a third-party tool. Not affiliated with Edupoint, Synergy, or MCPS. StudentVUE is a trademark of Edupoint.</span>
+    <span><a href="#/credits">Credits 💙</a> · <a href="#/privacy">Privacy</a> · <a href="#/faq">FAQ</a> · <a href="#/login">Sign in</a></span>
   </footer>`;
 }
