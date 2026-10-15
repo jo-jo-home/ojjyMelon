@@ -49,6 +49,12 @@ export default {
       return new Response('ok', { headers: CORS_HEADERS });
     }
 
+    if (url.pathname === '/') {
+      return new Response(
+        'ojjyMelon relay is running.\n\nEndpoints: GET /ping · POST /relay?url=<edupoint-url>\nSource: https://github.com/jo-jo-home/ojjyMelon\nMade by Jonas, Jayden\'s brother :) with \u2764\uFE0F\n',
+        { headers: { 'Content-Type': 'text/plain; charset=utf-8', ...CORS_HEADERS } });
+    }
+
     if (url.pathname !== '/relay') {
       return json({ error: 'not found' }, 404);
     }

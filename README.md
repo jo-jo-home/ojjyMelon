@@ -27,9 +27,20 @@ That's it — login works immediately using the built-in public proxy chain.
 
 ## Deploy your own relay (optional)
 
-ojjyMelon already ships with a **built-in hosted relay** ([ojjymelon-relay.fly.dev](https://ojjymelon-relay.fly.dev)) that gives everyone the full feature set with zero setup — you don't need to deploy anything. But the relays are what your school network can block, so if you want your own infrastructure (or the built-in one ever goes down), both of these use the same ~80-line protocol:
+ojjyMelon already ships with a **built-in hosted relay** ([ojjymelon-relay.jonasamlee.workers.dev](https://ojjymelon-relay.jonasamlee.workers.dev)) that gives everyone the full feature set with zero setup — you don't need to deploy anything. But the relays are what your school network can block, so if you want your own infrastructure (or the built-in one ever goes down), both of these use the same ~80-line protocol:
 
-### Option A — Fly.io (already deployed once with `flyctl`)
+### Option A — Cloudflare Worker (the built-in relay's platform, free forever)
+
+```bash
+cd worker
+npx wrangler login     # opens your browser → sign in → Allow
+npx wrangler deploy    # deploys to https://<name>.<your-subdomain>.workers.dev
+# paste your Worker URL into ojjyMelon Settings → Proxy relay
+```
+
+Cloudflare Workers free tier = 100,000 requests/day, no card required, never expires.
+
+### Option B — Fly.io (pay-as-you-go, needs a card)
 
 ```bash
 cd worker
@@ -38,13 +49,7 @@ fly deploy
 # paste https://<your-app-name>.fly.dev into ojjyMelon Settings → Proxy relay
 ```
 
-The `fly.toml` is pre-tuned: single shared-cpu machine in `iad`, **auto-stop when idle** (wakes in ~1–3 s), so it costs roughly a dollar a month at student usage. Requires a [fly.io](https://fly.io) account.
-
-### Option B — Cloudflare Worker
-
-1. Go to [Cloudflare dashboard](https://dash.cloudflare.com) → **Workers & Pages → Create Worker** (free tier).
-2. Paste [`worker/ojjymelon-proxy.js`](worker/ojjymelon-proxy.js) → **Deploy**.
-3. Paste the worker URL into ojjyMelon: **Settings → Proxy relay → Save**.
+The `fly.toml` is pre-tuned: single shared-cpu machine in `iad`, **auto-stop when idle** (wakes in ~1–3 s).
 
 Both relays only talk to `*.edupoint.com` servers, forward and immediately forget every request, and log nothing. You can also run the same relay locally with `node worker/local-relay.js`.
 
@@ -56,7 +61,7 @@ Both relays only talk to `*.edupoint.com` servers, forward and immediately forge
   - Both require the `edupointkeyversion` version key, which the app fetches automatically from a public key service (and caches, with manual override in Settings)
 - **Connections, in order of preference:**
   1. **Your relay** (Settings → Proxy relay): your own Fly.io app or Cloudflare Worker from [`worker/`](worker/). Full feature set, your infrastructure, nothing logged.
-  2. **Built-in hosted relay** (`ojjymelon-relay.fly.dev`): full feature set for everyone, zero setup — this is the default path.
+  2. **Built-in hosted relay** (`ojjymelon-relay.jonasamlee.workers.dev`): full feature set for everyone, zero setup — this is the default path.
   3. **Zero-setup public relay** (MCPS fallback): a community-hosted [svue-api](https://github.com/Zillorz/svue-api) instance serving grades, schedule, documents, and student info — used automatically if the hosted relay is unreachable.
   4. **Public CORS proxies**: best-effort automatic fallback.
 - **MCPS grading** — A ≥ 89.5, B ≥ 79.5, C ≥ 69.5, D ≥ 59.5, E below (verified against the district's own grading scale). Grades are recalculated from assignment scores with empty categories skipped, exactly like GradeMelon did. Weighted GPA adds +1.0 for A/B/C in Honors/AP/IB per MCPS policy.

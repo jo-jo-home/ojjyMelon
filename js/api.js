@@ -95,7 +95,7 @@ export async function getVersionKey() {
 /* Each proxy is a function (url, init) -> fetch-like call. */
 /* Built-in hosted relay (deployed on fly.io — see worker/README).
    Gives every ojjyMelon user the full feature set with zero setup. */
-const BUILTIN_RELAY = 'https://ojjymelon-relay.fly.dev';
+const BUILTIN_RELAY = 'https://ojjymelon-relay.jonasamlee.workers.dev';
 
 function relayProxy(relayUrl, name) {
   // Relay contract: GET  <relay>/ping          -> "ok"
@@ -498,7 +498,7 @@ export class StudentVue {
         if (!att) throw new ApiError('unavailable', 'norelay');
       } catch {
         throw new ApiError(
-          'Attendance needs the hosted relay (ojjymelon-relay.fly.dev), which appears blocked or offline on this network. On school Chromebooks the MCPS filter blocks it — try a personal device. See Settings → Connection check.',
+          'Attendance needs the hosted relay (ojjymelon-relay.workers.dev), which appears blocked or offline on this network. On school Chromebooks the MCPS filter blocks it — try a personal device. See Settings → Connection check.',
           'norelay');
       }
     } else {
@@ -537,7 +537,7 @@ export class StudentVue {
         const docDatas = data?.data?.studentAttachedDocumentData?.documentDatas || [];
         return docDatas[0] || null;
       } catch {
-        throw new ApiError('Document downloads need the hosted relay (ojjymelon-relay.fly.dev), which appears blocked on this network. Try a personal device, or run Settings → Connection check.', 'norelay');
+        throw new ApiError('Document downloads need the hosted relay (ojjymelon-relay.workers.dev), which appears blocked on this network. Try a personal device, or run Settings → Connection check.', 'norelay');
       }
     }
     const data = await this.#tryJson('GetStudentDocumentContent', { childIntID: 0, documentGU }, () => this.#soapDocumentContent(documentGU));
@@ -838,7 +838,7 @@ export async function diagnoseConnection(districtURL) {
   };
 
   await test('Built-in hosted relay (full features)', async () => {
-    const status = await reach('https://ojjymelon-relay.fly.dev/ping');
+    const status = await reach('https://ojjymelon-relay.jonasamlee.workers.dev/ping');
     if (status === 200) return 'reachable';
     return 'HTTP ' + status;
   });

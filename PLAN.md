@@ -2,7 +2,7 @@
 
 - **STATUS: BUILT, DEPLOYED, AND FULLY VERIFIED** ✅
 > - Site: **https://jo-jo-home.github.io/ojjyMelon/** (GitHub Pages, static PWA)
-> - Built-in relay: **https://ojjymelon-relay.fly.dev/** (fly.io, single auto-stopping machine — full features for every user, zero setup)
+> - Built-in relay: **https://ojjymelon-relay.jonasamlee.workers.dev/** (Cloudflare Workers free tier — full features for every user, zero setup)
 > - Verified end-to-end with a real MCPS account: login, all 7 classes with live grades, grade editor,
 >   optimizer, GPA, schedule, **attendance**, **document downloads**, guest mode, dark mode, PWA,
 >   connection diagnostics (school-filter detection).
