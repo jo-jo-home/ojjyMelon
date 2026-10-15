@@ -1,7 +1,7 @@
 /* ==========================================================================
    ojjyMelon — app shell: state, router, auth flow, chrome, theme, PWA
    ========================================================================== */
-import { StudentVue, isAuthError } from './api.js';
+import { StudentVue, isAuthError, clientFromSession, clearSession } from './api.js';
 import { DISTRICTS } from './districts.js';
 import * as G from './grades.js';
 import { toast, errorToast, successToast, bindDropdown, escapeHTML, $, $$ } from './ui.js';
@@ -69,17 +69,38 @@ export async function doLogin(username, password, remember, districtURL) {
 }
 
 export async function autoLogin() {
+  // 1. Cached session (no new sign-in attempt — avoids Synergy rate limits)
+  try {
+    const restored = clientFromSession();
+    if (restored) {
+      await restored.gradebook(); // throws on 401 (expired) or network failure
+      state.client = restored;
+      state.guest = false;
+      await loadGradesFromClient(restored);
+      updateChrome();
+      return true;
+    }
+  } catch (e) {
+    if (isAuthError(e)) clearSession();      // token expired — fall through to login
+    else return false;                       // network down — keep session for later
+  }
+  // 2. Saved credentials
   const creds = loadCreds();
   if (!creds) return false;
   try {
     await doLogin(creds.username, creds.password, true, creds.districtURL || state.districtURL);
-    successToast('Welcome back!');
     return true;
   } catch (e) {
     clearCreds();
     if (isAuthError(e)) errorToast('Saved login no longer works — please sign in again.');
     return false;
   }
+}
+
+async function loadGradesFromClient(client) {
+  const [gb, info] = await Promise.allSettled([client.gradebook(), client.studentInfo()]);
+  if (gb.status === 'fulfilled') setGrades(G.parseGrades(gb.value));
+  if (info.status === 'fulfilled') state.studentInfo = info.value;
 }
 
 export function enterGuestMode() {
@@ -106,6 +127,7 @@ export function logout(silent = false) {
   state.grades = null;
   state.studentInfo = null;
   clearCreds();
+  clearSession();
   updateChrome();
   if (!silent) successToast('Signed out.');
   location.hash = '#/login';

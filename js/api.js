@@ -208,6 +208,51 @@ async function proxiedFetch(url, init = {}) {
 const SVUE_BASE = 'https://axum-svue.fly.dev';
 const isMCPSHost = (district) => /md-mcps.*\.edupoint\.com/.test(district || '');
 
+/* ---------- Session persistence ----------
+   Synergy rate-limits logins per account, so ojjyMelon caches the auth token
+   and reuses it across reloads instead of signing in every time. The password
+   is never part of the session — only the opaque token pair. */
+const SESSION_KEY = 'ojjymelon.session';
+
+function saveSession(client) {
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+      u: client.username, d: client.district,
+      t: client.token, r: client.refresh,
+      at: Date.now(),
+    }));
+  } catch { /* ignore */ }
+}
+
+export function clearSession() {
+  try { localStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
+}
+
+export function loadSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (!s.t || !s.u || !s.d) return null;
+    // Sessions are reused for at most 12 hours before a fresh token is needed
+    if (Date.now() - s.at > 12 * 60 * 60 * 1000) return null;
+    return s;
+  } catch { return null; }
+}
+
+/* Restore a client from a cached session WITHOUT a new login attempt. */
+export function clientFromSession() {
+  const s = loadSession();
+  if (!s) return null;
+  const c = new StudentVue(s.d);
+  c.username = s.u;
+  c.password = null;            // unknown — not stored in the session
+  c.token = s.t;
+  c.refresh = s.r;
+  c.restoredFromSession = true; // password-bearing calls must re-login on 401
+  return c;
+}
+
 /* ---------- Client ---------- */
 export class StudentVue {
   constructor(districtURL) {
@@ -309,6 +354,7 @@ export class StudentVue {
     try {
       await this.#jsonLogin();
       this.mode = 'json';
+      saveSession(this);
       return this;
     } catch (e) {
       if (e instanceof UnauthorizedError) throw e; // wrong credentials

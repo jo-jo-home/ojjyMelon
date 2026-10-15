@@ -42,6 +42,37 @@ export function renderLogin(view, params) {
   const submit = $('#login-submit', view);
   const errEl = $('#login-error', view);
   let busy = false;
+  let cooldownTimer = null;
+
+  /* Client-side throttling: Synergy rate-limits sign-ins per account (and can
+     temporarily lock them), so cool down after failures and space out retries. */
+  const cooldownStore = {
+    get() {
+      try { return JSON.parse(localStorage.getItem('ojjymelon.loginCooldown') || 'null'); } catch { return null; }
+    },
+    set(count) {
+      const waits = [15, 30, 60, 300]; // seconds after 1st, 2nd, 3rd, 4th+ failure
+      const secs = waits[Math.min(count - 1, waits.length - 1)];
+      const until = Date.now() + secs * 1000;
+      try { localStorage.setItem('ojjymelon.loginCooldown', JSON.stringify({ count, until })); } catch { /* ignore */ }
+      return secs;
+    },
+    clear() { try { localStorage.removeItem('ojjymelon.loginCooldown'); } catch { /* ignore */ } },
+  };
+
+  function updateCooldownUI() {
+    const cd = cooldownStore.get();
+    if (!cd || cd.until < Date.now()) {
+      if (!busy) { submit.disabled = false; submit.innerHTML = 'Sign in'; }
+      return;
+    }
+    const secs = Math.ceil((cd.until - Date.now()) / 1000);
+    submit.disabled = true;
+    submit.textContent = `Wait ${secs}s before trying again…`;
+    clearTimeout(cooldownTimer);
+    cooldownTimer = setTimeout(updateCooldownUI, 1000);
+  }
+  updateCooldownUI();
 
   const fail = (msg, showCheck) => {
     errEl.textContent = msg;
@@ -49,14 +80,13 @@ export function renderLogin(view, params) {
     const checkBtn = $('#connection-check-link', view);
     if (showCheck && checkBtn) checkBtn.classList.remove('hidden');
     else if (checkBtn) checkBtn.classList.add('hidden');
-    submit.disabled = false;
-    submit.innerHTML = 'Sign in';
     busy = false;
+    updateCooldownUI();
   };
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (busy) return;
+    if (busy || submit.disabled) return;
     errEl.classList.add('hidden');
     const username = $('#username', view).value.trim();
     const password = $('#password', view).value;
@@ -66,11 +96,16 @@ export function renderLogin(view, params) {
     submit.innerHTML = '<span class="spinner" style="width:18px;height:18px;border-width:3px;margin:0"></span> Signing in…';
     try {
       await doLogin(username, password, $('#remember', view).checked, selectedURL);
+      cooldownStore.clear();
       toast('Welcome back! Loading your grades…', 'success');
       location.hash = '#/grades';
     } catch (err) {
+      const prev = cooldownStore.get();
+      const count = (prev && prev.until > Date.now() ? prev.count : 0) + 1;
+      const wait = cooldownStore.set(count);
       const { msg, check } = friendlyError(err);
-      fail(msg, check);
+      const extra = count >= 2 ? ` (Waiting ${wait >= 60 ? Math.round(wait / 60) + ' min' : wait + 's'} before the next attempt — frequent retries can extend MCPS's lockout.)` : '';
+      fail(msg + extra, check);
     }
   });
 
@@ -145,7 +180,9 @@ function friendlyError(err) {
   if (/Invalid user|password|credential|sign in again|session expired/i.test(msg)) {
     return { msg: 'Invalid student ID or password. (Make sure you use the same login as the StudentVUE app.)' };
   }
-  if (/locked|attempt/i.test(msg)) return { msg: 'Too many attempts — your account may be temporarily locked. Try again in a few minutes.' };
+  if (/locked|attempt/i.test(msg)) {
+    return { msg: 'MCPS temporarily limited sign-ins for your account. Their rate limit clears on its own, usually within 15–60 minutes — please wait before trying again (each retry can extend the lockout). Good news: ojjyMelon now caches your session, so page refreshes no longer count as new sign-ins.', check: false };
+  }
   if (err?.allBlocked || /Every connection path|blocked/i.test(msg)) {
     return { msg, check: true };
   }
