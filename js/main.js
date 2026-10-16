@@ -6,7 +6,7 @@ import { DISTRICTS } from './districts.js';
 import * as G from './grades.js';
 import { toast, errorToast, successToast, bindDropdown, escapeHTML, $, $$ } from './ui.js';
 
-import { renderHome } from './views/home.js';
+import { renderHome, destroyHomeFX } from './views/home.js';
 import { renderLogin } from './views/login.js';
 import { renderGrades } from './views/grades.js';
 import { renderCourse } from './views/course.js';
@@ -173,6 +173,7 @@ function requireAuth() {
 
 export async function route() {
   await bootGate.catch(() => {});
+  destroyHomeFX();
   const { name, arg, params } = currentRoute();
   const view = $('#view');
   view.scrollTop = 0;
@@ -213,6 +214,7 @@ export function updateChrome() {
   topbar.hidden = false;
   $('#avatar-wrap').hidden = !logged;
   $('#login-btn-top').hidden = logged;
+  $('#login-btn-top').textContent = currentRoute().name === 'home' ? 'Get started' : 'Sign in';
   $('#logout-btn').hidden = !logged;
 
   const route = currentRoute();
