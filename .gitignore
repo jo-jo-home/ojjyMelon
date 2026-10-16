@@ -8,3 +8,4 @@ Thumbs.db
 # Local dev
 node_modules/
 *.log
+scrollcraft/lab/
