@@ -271,6 +271,10 @@ export function renderHome(view) {
   } else {
     const tick = () => {
       if (!document.body.contains(rgAct)) { regradeRaf = 0; return; }
+      const prect = rgAct.getBoundingClientRect();
+      if (prect.bottom < -240 || prect.top > innerHeight + 240) {
+        regradeRaf = requestAnimationFrame(tick); return;   // off-screen: skip the paint, keep the loop
+      }
       const rect = rgAct.getBoundingClientRect();
       const vh = window.innerHeight;
       const total = Math.max(rect.height - vh, 1);
