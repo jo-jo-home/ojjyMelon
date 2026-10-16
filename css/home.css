@@ -1,0 +1,275 @@
+@font-face {
+  font-family: 'Archivo Black';
+  src: url('../assets/fonts/archivo-black.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+html.hm-active { scroll-behavior: auto; scrollbar-color: #a9c4ff #174ae3; background: #174ae3; }
+/* Home-only backdrop: the app's light/dark wash must not show through
+   overscroll or the mobile toolbar gap while the landing owns the page. */
+html.hm-active body { background: #174ae3; transition: background-color 0ms, color 0ms; }
+.layout:has(.view--home) { max-width: none; }
+.view.view--home { padding: 0; min-width: 0; }
+.hm-topbar { background: #174ae3; border-color: #ffffff30; backdrop-filter: none; }
+.hm-topbar .topbar-inner { max-width: none; padding-inline: clamp(20px, 5vw, 100px); }
+.hm-topbar .brand-name, .hm-topbar .brand-accent, .hm-topbar .icon-btn { color: #fff; }
+.hm-topbar .brand-logo { width: 30px; height: 30px; }
+.hm-topbar #theme-toggle { display: none; }
+.hm-topbar .btn-primary { background: #fff; color: #123ac0; border-color: transparent; }
+.hm-topbar :focus-visible { outline-color: #fff; }
+/* One press, not two: neutralize the app-wide .btn:active transform so it does
+   not compose with the individual `scale` property. --ease-out is scoped to
+   .hm-home (the topbar sits outside it), so the literal curve is used. */
+.hm-topbar .btn:active { transform: none; }
+
+.hm-home {
+  --hm-blue: #174ae3;
+  --hm-ink: #12265a;
+  --hm-paper: #eef2fa;
+  --hm-soft: #53617e;
+  --hm-line: #cfdaed;
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --hm-display: 'Archivo Black', 'Manrope', sans-serif;
+  background: var(--hm-paper);
+  color: var(--hm-ink);
+  isolation: isolate;
+  font-family: 'Manrope', sans-serif;
+  color-scheme: light;
+}
+.hm-home ::selection { background: #a8c5ff; color: #12265a; }
+.hm-home h1, .hm-home h2, .hm-home h3, .hm-home p { margin: 0; }
+.hm-home button, .hm-home input { font: inherit; }
+.hm-home a { text-underline-offset: 5px; }
+.hm-home :focus-visible { outline: 3px solid var(--hm-blue); outline-offset: 5px; }
+.hm-story { height: 480svh; position: relative; }
+.hm-stage { position: sticky; top: 64px; height: calc(100svh - 64px); min-height: 600px; overflow: clip; background: var(--hm-blue); }
+.hm-paper { position: absolute; inset: 0; background: var(--hm-paper); transform: translateY(101%); will-change: transform; }
+.hm-opening { position: absolute; inset: 0; color: #fff; z-index: 3; pointer-events: none; will-change: transform, opacity; }
+.hm-opening h1 { position: absolute; top: 4%; left: 5%; font-family: var(--hm-display); font-size: clamp(80px, 10.8vw, 176px); font-weight: 400; line-height: .93; letter-spacing: -.04em; }
+.hm-opening h1 span { display: block; }
+.hm-opening h1 span:last-child { padding-left: 5vw; }
+.hm-intro { position: absolute; left: 5.5%; top: 53%; max-width: 300px; pointer-events: auto; }
+.hm-intro > p { color: #e5edff; font-size: clamp(14px, 1.1vw, 18px); line-height: 1.65; max-width: 30ch; }
+.hm-button { display: inline-flex; align-items: center; justify-content: space-between; gap: 34px; min-height: 52px; padding: 14px 22px; margin-top: 28px; border: 1px solid transparent; border-radius: 8px; background: var(--hm-blue); color: #fff !important; font-size: 15px; font-weight: 800; text-decoration: none !important; -webkit-tap-highlight-color: transparent; }
+.hm-button svg { width: 22px; height: 22px; flex: none; }
+.hm-button--white { background: #fff; color: #153ec1 !important; }
+.hm-intro .hm-button:focus-visible { outline-color: #fff; }
+.hm-text-button { display: block; padding: 10px 0; margin-top: 4px; min-height: 44px; background: none; border: 0; color: #fff; cursor: pointer; font-size: 13px !important; text-decoration: underline; text-underline-offset: 5px; }
+.hm-intro .hm-text-button:focus-visible { outline-color: #fff; }
+.hm-caption { position: absolute; left: 5.5%; top: 23%; width: 29%; z-index: 3; opacity: 0; will-change: transform, opacity; }
+.hm-caption h2 { font-family: var(--hm-display); font-size: clamp(38px, 4.1vw, 60px); line-height: 1.06; font-weight: 400; letter-spacing: -.035em; text-wrap: balance; }
+.hm-caption > p { margin-top: 26px; line-height: 1.75; color: var(--hm-soft); font-size: clamp(14px, 1.1vw, 18px); }
+.hm-caption .hm-grade-change { display: flex; align-items: center; gap: 22px; margin-top: 34px; color: var(--hm-ink); font: 400 clamp(60px, 6vw, 96px)/1 var(--hm-display); }
+.hm-grade-change > span { color: #53617e; }
+.hm-grade-change svg { width: 42px; height: 42px; }
+.hm-grade-change strong { color: #176044; font-weight: 400; }
+.hm-caption--ready { top: 23%; }
+.hm-scene-note { position: absolute; left: 5.5%; bottom: 30px; color: #e5edff; font-size: 12px; }
+/* display lives in the low-specificity rule so the static blocks can flip it;
+   everything else needs (0,1,1) to beat `.hm-home p { margin: 0 }`. */
+.hm-static-note { display: none; }
+.hm-home p.hm-static-note { width: min(90%, 860px); margin: 0 auto 28px; color: #e5edff; font-size: clamp(14px, 1.1vw, 18px); line-height: 1.7; }
+
+/* One physical gradebook. The category and assignment surfaces detach from it. */
+.hm-product-position { position: absolute; left: 0; top: 0; width: min(59vw, 900px); z-index: 2; transform: translate(34vw, 36svh); transform-origin: 0 0; will-change: transform; }
+.hm-product { width: 100%; height: 597px; position: relative; transform-style: preserve-3d; transform-origin: 50% 40%; transform: perspective(1600px) rotateX(12deg) rotateY(-16deg) rotateZ(-7deg); }
+.hm-sheet { border: 1px solid transparent; box-shadow: 0 24px 64px #0b286b29, 0 3px 9px #0b286b14, 0 0 0 1px #c8d5ee; border-radius: 12px; background: #fff; color: var(--hm-ink); }
+.hm-book { position: absolute; top: 0; left: 0; right: 0; overflow: hidden; }
+.hm-book-nav { display: flex; gap: 24px; align-items: center; height: 48px; padding: 0 24px; border-bottom: 1px solid var(--hm-line); font-size: 12px; font-weight: 700; }
+.hm-book-nav > span:first-child { color: #174ae3; font-size: 16px; font-weight: 800; }
+.hm-book-nav > span:last-child { margin-left: auto; color: var(--hm-soft); font-size: 11px; }
+.hm-book-heading { padding: 19px 24px 14px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.hm-book-heading h3 { font-size: 24px; font-weight: 800; letter-spacing: -.03em; }
+.hm-book-heading > span { font-size: 11px; color: var(--hm-soft); }
+.hm-course { display: grid; grid-template-columns: 28px 1fr 74px 28px; align-items: center; gap: 14px; margin-inline: 16px; padding: 10px 12px; border-bottom: 1px solid #dde5f3; font-size: 12px; font-weight: 700; }
+.hm-course small { display: block; margin-top: 2px; color: var(--hm-soft); font-size: 11px; font-weight: 500; }
+.hm-period { color: var(--hm-soft); font-size: 12px; font-weight: 600; }
+.hm-course strong { text-align: right; font-size: 17px; font-variant-numeric: tabular-nums; }
+.hm-course strong > span:last-child { font-size: 11px; }
+.hm-course b { color: #176044; font-size: 20px; text-align: right; }
+.hm-course--selected { background: #eaf0ff; border-radius: 6px; border-color: transparent; }
+.hm-course--selected b { color: #174ae3; }
+.hm-course--selected b[data-grade='A'] { color: #176044; }
+.hm-weights { position: absolute; left: 16px; right: 16px; top: 287px; padding: 14px 18px 10px; background: #f7f9fe; will-change: transform; }
+.hm-layer-title { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 12px; font-size: 12px; font-weight: 800; }
+.hm-layer-title span:last-child { color: var(--hm-soft); font-weight: 500; }
+.hm-weight-row { display: grid; grid-template-columns: 135px 1fr 48px; align-items: center; gap: 14px; margin-top: 9px; font-size: 12px; }
+.hm-weight-row > span { display: flex; justify-content: space-between; gap: 8px; }
+.hm-weight-row b { font-weight: 800; }
+.hm-weight-row > strong { text-align: right; font-variant-numeric: tabular-nums; font-size: 12px; }
+.hm-track { height: 5px; background: #dbe4f5; border-radius: 2px; overflow: hidden; }
+.hm-track i { display: block; width: 100%; height: 100%; background: #174ae3; transform-origin: left; transform: scaleX(.88); }
+.hm-track .hm-practice-bar { transform: scaleX(.92); background: #687dba; }
+.hm-equation { display: flex; justify-content: space-between; gap: 8px; margin-top: 12px !important; padding-top: 9px; border-top: 1px solid var(--hm-line); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--hm-soft); }
+.hm-equation strong { color: var(--hm-ink); }
+.hm-assignment { position: absolute; left: 16px; right: 16px; top: 433px; padding: 16px 18px 12px; background: #fff; will-change: transform; }
+.hm-assignment-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.hm-assignment-heading label { font-size: 14px; font-weight: 800; cursor: text; }
+.hm-assignment-heading p { font-size: 11px; line-height: 1.5; margin-top: 4px; color: var(--hm-soft); }
+.hm-score-field { display: flex; gap: 4px; align-items: baseline; flex: none; }
+.hm-score-field input { width: 77px; border: 1px solid #778bad; border-radius: 6px; background: #f5f8ff; padding: 2px 4px; color: var(--hm-ink); font-size: 23px; font-weight: 800; text-align: center; font-variant-numeric: tabular-nums; caret-color: #174ae3; }
+.hm-score-field input:disabled { opacity: 1; -webkit-text-fill-color: var(--hm-ink); border-color: transparent; background: transparent; }
+.hm-score-field > span { font-size: 14px; color: var(--hm-soft); }
+.hm-assignment input[type='range'] { display: block; width: 100%; margin: 8px 0 4px; height: 24px; accent-color: #174ae3; cursor: pointer; }
+.hm-assignment input[type='range']:disabled { opacity: .8; cursor: default; }
+.hm-assignment-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 24px; color: var(--hm-soft); font-size: 11px; }
+.hm-reset { border: 0; padding: 8px 4px; min-height: 32px; background: none; color: #174ae3; font-size: 11px !important; font-weight: 800 !important; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.hm-reset:disabled { visibility: hidden; }
+/* Always in layout so the sheet's measured extent never changes when the
+   message appears (visibility, not display); visibility:hidden keeps it out
+   of the a11y tree and focus order until shown. */
+.hm-validation { color: #a32625; font-size: 11px; line-height: 1.45; padding-top: 4px; visibility: hidden; }
+.hm-validation.is-shown { visibility: visible; }
+.hm-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+.hm-beyond { position: relative; padding: 100px 5.5% 110px; display: grid; grid-template-columns: 1fr 1fr; gap: 8%; background: var(--hm-paper); }
+.hm-beyond h2 { font-family: var(--hm-display); font-weight: 400; font-size: clamp(28px, 3vw, 44px); line-height: 1.12; letter-spacing: -.035em; }
+.hm-feature-ledger p { display: grid; grid-template-columns: 1fr 1.2fr; gap: 20px; padding: 20px 0; border-top: 1px solid #b7c5df; font-size: 12px; }
+.hm-feature-ledger p:first-child { padding-top: 0; border-top: 0; }
+.hm-feature-ledger span { color: var(--hm-soft); line-height: 1.7; }
+.hm-close { position: relative; padding: 90px 5.5% 30px; background: #101c3a; color: #fff; display: grid; grid-template-columns: 1.6fr 1fr; align-items: center; gap: 60px; }
+.hm-close h2 { font-family: var(--hm-display); font-size: clamp(44px, 6.5vw, 96px); font-weight: 400; letter-spacing: -.04em; line-height: .99; }
+.hm-close-action { justify-self: end; padding-right: 5vw; }
+.hm-close-action > p { color: #c5d3ef; line-height: 1.7; font-size: 16px; }
+.hm-close :focus-visible { outline-color: #fff; }
+.hm-footer { display: grid; grid-template-columns: 1fr auto; gap: 30px; grid-column: 1 / -1; border-top: 1px solid #475576; margin-top: 40px; padding-top: 26px; font-size: 11px; line-height: 1.9; color: #c5d3ef; }
+.hm-footer-links { display: flex; align-items: start; gap: 24px; }
+.hm-home .hm-footer-links a { color: #fff; }
+.hm-footer-links svg { display: inline-block; width: 12px; height: 12px; transform: rotate(-45deg); vertical-align: middle; }
+.hm-legal { grid-column: 1 / -1; color: #a9bbde; font-size: 11px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .hm-button { transition: background-color 150ms ease, scale 150ms var(--ease-out); }
+  .hm-button:active, .hm-reset:not(:disabled):active { scale: .96; }
+  .hm-reset { transition: scale 150ms var(--ease-out); }
+  .hm-topbar .btn { transition: background-color 150ms cubic-bezier(0.23, 1, 0.32, 1), scale 150ms cubic-bezier(0.23, 1, 0.32, 1); }
+  .hm-topbar .btn:not(:disabled):active { scale: .96; }
+}
+@media (hover: hover) and (pointer: fine) {
+  .hm-button:hover { background: #1039b7; }
+  .hm-button--white:hover { background: #e2eaff; }
+  .hm-topbar .icon-btn:hover { background: #ffffff20; color: #fff; }
+  .hm-text-button:hover, .hm-reset:hover { text-decoration-thickness: 2px; }
+}
+
+@media (min-width: 1800px) {
+  .hm-opening h1 { top: 7%; }
+  .hm-intro { top: 57%; }
+}
+@media (min-width: 760px) and (max-height: 760px) {
+  .hm-stage { min-height: 530px; }
+  .hm-opening h1 { font-size: min(9vw, 110px); top: 3%; }
+  .hm-intro { top: 49%; }
+}
+@media (max-width: 1100px) and (min-width: 760px) {
+  .hm-course { gap: 8px; }
+  .hm-book-heading > span { display: none; }
+  .hm-caption h2 { font-size: 36px; }
+  .hm-weight-row { grid-template-columns: 115px 1fr 42px; gap: 8px; }
+}
+@media (max-width: 759px) {
+  .hm-topbar .brand-name { display: block; font-size: 16px; }
+  .hm-topbar .brand-logo { width: 25px; height: 25px; }
+  .hm-topbar .topbar-inner { padding-inline: 16px; }
+  .hm-topbar .topbar-actions { gap: 0; }
+  .hm-topbar .icon-btn { width: 32px; height: 36px; }
+  .hm-topbar .icon-btn svg { width: 18px; height: 18px; }
+  .hm-topbar .btn-sm { padding: 8px 12px; font-size: 11px; }
+  .hm-story { height: 420svh; }
+  .hm-stage { min-height: 560px; }
+  .hm-opening h1 { font-size: clamp(42px, 13vw, 86px); top: 5%; left: 6%; line-height: 1.02; }
+  .hm-opening h1 span:last-child { padding-left: 0; }
+  .hm-intro { left: 6%; top: 23%; max-width: 90%; }
+  .hm-intro > p { font-size: 12px; line-height: 1.7; max-width: 38ch; }
+  .hm-intro .hm-button { min-height: 44px; margin-top: 16px; padding: 10px 17px; font-size: 12px; gap: 18px; }
+  .hm-intro .hm-text-button { display: inline-block; margin-left: 18px; font-size: 11px !important; }
+  .hm-caption { left: 6%; top: 5%; width: 88%; }
+  .hm-caption h2 { font-size: clamp(30px, 9vw, 46px); line-height: 1.04; }
+  .hm-caption h2 br { display: none; }
+  .hm-caption > p { margin-top: 14px; font-size: 12px; line-height: 1.7; max-width: 38ch; }
+  .hm-caption--math .hm-grade-change { font-size: 38px; margin-top: 10px; gap: 14px; }
+  .hm-grade-change svg { width: 24px; height: 24px; }
+  .hm-caption--ready h2 { font-size: 38px; }
+  .hm-caption--ready > p { max-width: 25ch; }
+  .hm-caption--ready .hm-button { position: absolute; right: 0; bottom: 0; margin: 0; padding: 12px; min-height: 44px; font-size: 11px; gap: 8px; }
+  .hm-caption--ready .hm-button svg { width: 17px; height: 17px; }
+  .hm-product-position { width: min(calc(100% - 32px), 510px); transform: translate(16px, 330px); }
+  .hm-product { height: 495px; }
+  .hm-book-nav { height: 39px; padding: 0 14px; gap: 18px; }
+  .hm-book-nav > span:first-child { font-size: 13px; }
+  .hm-book-nav > span:nth-child(2) { display: none; }
+  .hm-book-nav > span:last-child { font-size: 11px; }
+  .hm-book-heading { padding: 12px 14px 10px; }
+  .hm-book-heading h3 { font-size: 22px; }
+  .hm-book-heading > span { display: none; }
+  /* Narrow screens compact the board to one non-selected other class so the
+     same Algebra object fits at (near) full scale with >=11px sheet text. */
+  .hm-course--extra { display: none; }
+  .hm-course { margin-inline: 8px; grid-template-columns: 18px 1fr 58px 20px; gap: 8px; padding: 10px 8px; font-size: 11px; }
+  .hm-course strong { font-size: 15px; }
+  .hm-course small { font-size: 11px; }
+  .hm-course b { font-size: 18px; }
+  .hm-weights { top: 203px; left: 8px; right: 8px; padding: 10px; }
+  .hm-weight-row { grid-template-columns: 110px 1fr 40px; gap: 7px; font-size: 11px; }
+  .hm-layer-title { font-size: 11px; gap: 4px; margin-bottom: 10px; }
+  .hm-equation { font-size: 11px; margin-top: 10px !important; padding-top: 7px; }
+  .hm-assignment { top: 332px; left: 8px; right: 8px; padding: 10px; }
+  .hm-assignment-heading p { max-width: none; font-size: 11px; }
+  .hm-assignment-heading label { font-size: 12px; }
+  .hm-score-field input { font-size: 21px; width: 72px; }
+  .hm-score-field > span { font-size: 12px; }
+  .hm-assignment-footer { font-size: 11px; }
+  .hm-reset { min-height: 40px; padding: 8px; }
+  .hm-scene-note { display: none; }
+  .hm-beyond { padding: 64px 6%; grid-template-columns: 1fr; gap: 38px; }
+  .hm-beyond h2 { font-size: 28px; }
+  .hm-feature-ledger p { font-size: 11px; gap: 12px; padding-block: 18px; }
+  .hm-close { padding: 64px 6% 24px; grid-template-columns: 1fr; gap: 30px; }
+  .hm-close h2 { font-size: 42px; }
+  .hm-close-action { justify-self: start; padding: 0; }
+  .hm-close-action > p { font-size: 14px; }
+  .hm-footer { grid-template-columns: 1fr; margin-top: 20px; font-size: 11px; gap: 22px; }
+  .hm-footer-links { flex-wrap: wrap; gap: 22px; }
+}
+@media (max-width: 380px) {
+  .hm-feature-ledger p { grid-template-columns: 1fr; gap: 4px; }
+  .hm-footer-links { gap: 16px; }
+}
+
+/* Small/short screens get a complete normal-flow story, not a clipped pin.
+   The query mirrors home.js's shortScreen media query exactly: short viewports
+   generally, plus narrow viewports too short for a legible dynamic scene. */
+@media (max-height: 680px), (prefers-reduced-motion: reduce), (max-width: 759px) and (max-height: 819px) {
+  .hm-story { height: auto; }
+  .hm-stage { position: relative; top: auto; height: auto; min-height: 0; overflow: clip; padding-bottom: 50px; }
+  .hm-opening { position: relative; padding: 38px 6% 30px; }
+  .hm-opening h1 { position: static; font-size: clamp(44px, 9vw, 100px); }
+  .hm-opening h1 span:last-child { padding-left: 0; }
+  .hm-intro { position: static; margin-top: 24px; max-width: none; }
+  .hm-caption { display: none; }
+  .hm-static-note { display: block; }
+  .hm-product-position { position: relative; margin: 0 auto; width: min(90%, 860px); transform: none; }
+  .hm-product { transform: none; height: auto; width: 100%; }
+  .hm-sheet { position: relative; inset: auto; width: 100%; }
+  .hm-weights, .hm-assignment { margin-top: 14px; }
+  .hm-paper, .hm-scene-note { display: none; }
+}
+.hm-motion-off .hm-story { height: auto; }
+.hm-motion-off .hm-stage { position: relative; top: auto; height: auto; min-height: 0; padding-bottom: 50px; }
+.hm-motion-off .hm-opening { position: relative; padding: 38px 6% 30px; }
+.hm-motion-off .hm-opening h1 { position: static; font-size: clamp(44px, 9vw, 100px); }
+.hm-motion-off .hm-opening h1 span:last-child { padding-left: 0; }
+.hm-motion-off .hm-intro { position: static; margin-top: 24px; max-width: none; }
+.hm-motion-off .hm-caption { display: none; }
+.hm-motion-off .hm-static-note { display: block; }
+.hm-motion-off .hm-product-position { position: relative; margin: 0 auto; width: min(90%, 860px); }
+.hm-motion-off .hm-product { height: auto; width: 100%; }
+.hm-motion-off .hm-sheet { position: relative; inset: auto; width: 100%; }
+.hm-motion-off .hm-weights, .hm-motion-off .hm-assignment { margin-top: 14px; }
+.hm-motion-off .hm-paper, .hm-motion-off .hm-scene-note { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hm-topbar .btn:not(:disabled):active { scale: 1; }
+}

@@ -1,12 +1,14 @@
 /* ojjyMelon service worker
    Strategy: network-first for code (js/, css/) so deploys go live immediately,
    cache-first for static assets. API/cross-origin traffic is never intercepted. */
-const VERSION = 'ojjymelon-v3';
+const VERSION = 'ojjymelon-v4';
 const CORE = [
   './',
   './index.html',
   './css/style.css',
+  './css/home.css',
   './js/main.js',
+  './js/views/home.js',
   './js/api.js',
   './js/ui.js',
   './js/grades.js',
@@ -17,6 +19,7 @@ const CORE = [
   './assets/img/hero.svg',
   './assets/img/default-avatar.svg',
   './assets/img/guest-avatar.svg',
+  './assets/fonts/archivo-black.ttf',
 ];
 
 self.addEventListener('install', (e) => {

@@ -1,5 +1,11 @@
 # BRIEF · ojjyMelon landing
 
+> **SUPERSEDED (2026-10-16).** The user rejected this build's render as a plain
+> navy page with floating chips and delegated a materially new direction
+> ("Product as spectacle", continuous transformation). The replacement brief
+> lives at `scrollcraft/builds/gradebook-transformation/BRIEF.md`; this file is
+> kept as the honest record of the rejected build.
+
 **Self-authored under explicit creative delegation.** The user asked for "scrollydriven,
 professional, polished, like award winning" and delegated creative direction. Not interviewed.
 

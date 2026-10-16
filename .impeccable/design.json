@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-16T23:00:35Z",
+  "title": "Design System: ojjyMelon",
+  "extensions": {
+    "colorMeta": {
+      "hm-blue": { "role": "primary", "displayName": "Homepage cobalt", "tonalRamp": ["oklch(15% 0.23605 264.38)", "oklch(26.43% 0.23605 264.38)", "oklch(37.86% 0.23605 264.38)", "oklch(49.29% 0.23605 264.38)", "oklch(60.71% 0.23605 264.38)", "oklch(72.14% 0.23605 264.38)", "oklch(83.57% 0.23605 264.38)", "oklch(95% 0.23605 264.38)"] },
+      "hm-ink": { "role": "neutral", "displayName": "Product ink", "tonalRamp": ["oklch(15% 0.09722 264.96)", "oklch(26.43% 0.09722 264.96)", "oklch(37.86% 0.09722 264.96)", "oklch(49.29% 0.09722 264.96)", "oklch(60.71% 0.09722 264.96)", "oklch(72.14% 0.09722 264.96)", "oklch(83.57% 0.09722 264.96)", "oklch(95% 0.09722 264.96)"] },
+      "hm-paper": { "role": "neutral", "displayName": "Pale paper", "tonalRamp": ["oklch(15% 0.01154 264.51)", "oklch(26.43% 0.01154 264.51)", "oklch(37.86% 0.01154 264.51)", "oklch(49.29% 0.01154 264.51)", "oklch(60.71% 0.01154 264.51)", "oklch(72.14% 0.01154 264.51)", "oklch(83.57% 0.01154 264.51)", "oklch(95% 0.01154 264.51)"] },
+      "hm-soft": { "role": "neutral", "displayName": "Secondary product text", "tonalRamp": ["oklch(15% 0.04983 264.57)", "oklch(26.43% 0.04983 264.57)", "oklch(37.86% 0.04983 264.57)", "oklch(49.29% 0.04983 264.57)", "oklch(60.71% 0.04983 264.57)", "oklch(72.14% 0.04983 264.57)", "oklch(83.57% 0.04983 264.57)", "oklch(95% 0.04983 264.57)"] },
+      "hm-line": { "role": "neutral", "displayName": "Structural rule", "tonalRamp": ["oklch(15% 0.02875 261.47)", "oklch(26.43% 0.02875 261.47)", "oklch(37.86% 0.02875 261.47)", "oklch(49.29% 0.02875 261.47)", "oklch(60.71% 0.02875 261.47)", "oklch(72.14% 0.02875 261.47)", "oklch(83.57% 0.02875 261.47)", "oklch(95% 0.02875 261.47)"] },
+      "hm-close": { "role": "neutral", "displayName": "Dark close", "tonalRamp": ["oklch(15% 0.06024 265.58)", "oklch(26.43% 0.06024 265.58)", "oklch(37.86% 0.06024 265.58)", "oklch(49.29% 0.06024 265.58)", "oklch(60.71% 0.06024 265.58)", "oklch(72.14% 0.06024 265.58)", "oklch(83.57% 0.06024 265.58)", "oklch(95% 0.06024 265.58)"] },
+      "hm-grade-green": { "role": "semantic", "displayName": "A-grade outcome", "tonalRamp": ["oklch(15% 0.08447 162.88)", "oklch(26.43% 0.08447 162.88)", "oklch(37.86% 0.08447 162.88)", "oklch(49.29% 0.08447 162.88)", "oklch(60.71% 0.08447 162.88)", "oklch(72.14% 0.08447 162.88)", "oklch(83.57% 0.08447 162.88)", "oklch(95% 0.08447 162.88)"] },
+      "hm-white": { "role": "neutral", "displayName": "Sheet white", "tonalRamp": ["oklch(15% 0 0)", "oklch(26.43% 0 0)", "oklch(37.86% 0 0)", "oklch(49.29% 0 0)", "oklch(60.71% 0 0)", "oklch(72.14% 0 0)", "oklch(83.57% 0 0)", "oklch(95% 0 0)"] },
+      "hm-white-button-ink": { "role": "primary", "displayName": "Inverse-action ink", "tonalRamp": ["oklch(15% 0.20801 264.76)", "oklch(26.43% 0.20801 264.76)", "oklch(37.86% 0.20801 264.76)", "oklch(49.29% 0.20801 264.76)", "oklch(60.71% 0.20801 264.76)", "oklch(72.14% 0.20801 264.76)", "oklch(83.57% 0.20801 264.76)", "oklch(95% 0.20801 264.76)"] },
+      "hm-selected": { "role": "neutral", "displayName": "Selected-course wash", "tonalRamp": ["oklch(15% 0.02117 268.43)", "oklch(26.43% 0.02117 268.43)", "oklch(37.86% 0.02117 268.43)", "oklch(49.29% 0.02117 268.43)", "oklch(60.71% 0.02117 268.43)", "oklch(72.14% 0.02117 268.43)", "oklch(83.57% 0.02117 268.43)", "oklch(95% 0.02117 268.43)"] },
+      "hm-field": { "role": "neutral", "displayName": "Editable-field wash", "tonalRamp": ["oklch(15% 0.00986 267.36)", "oklch(26.43% 0.00986 267.36)", "oklch(37.86% 0.00986 267.36)", "oklch(49.29% 0.00986 267.36)", "oklch(60.71% 0.00986 267.36)", "oklch(72.14% 0.00986 267.36)", "oklch(83.57% 0.00986 267.36)", "oklch(95% 0.00986 267.36)"] }
+    },
+    "typographyMeta": {
+      "hm-display": { "displayName": "Homepage opening", "purpose": "Desktop opening only; responsive variants are in DESIGN.md. Never a dashboard type role." },
+      "hm-headline": { "displayName": "Scene explanation", "purpose": "Desktop transformation captions." },
+      "hm-body": { "displayName": "Opening explanation", "purpose": "Desktop introductory text, not a universal body-size declaration." },
+      "hm-button": { "displayName": "Homepage CTA", "purpose": "Desktop marketing actions; compact variants remain component-specific." },
+      "hm-course-title": { "displayName": "Sample board heading", "purpose": "Manrope heading inside the live DOM gradebook." }
+    },
+    "shadows": [
+      { "name": "hm-sheet", "value": "0 24px 64px #0b286b29, 0 3px 9px #0b286b14, 0 0 0 1px #c8d5ee", "purpose": "Structural separation of the gradebook's real DOM surfaces; css/home.css:78." }
+    ],
+    "motion": [
+      { "name": "hm-ease-out", "value": "cubic-bezier(0.23, 1, 0.32, 1)", "purpose": "150ms action scale transitions; css/home.css:33,143–148." },
+      { "name": "hm-press", "value": "scale: .96; duration: 150ms", "purpose": "Enabled homepage actions under no-preference; topbar neutralizes inherited app transform." },
+      { "name": "hm-scroll-damping", "value": "progress += (target - progress) * (1 - Math.exp(-dt / 60))", "purpose": "Native-scroll visual progress only; dt capped at 50ms, settles within 0.0001, sleeps idle/hidden; js/views/home.js:276–285." },
+      { "name": "hm-timeline-ownership", "value": "direct transform/opacity; one writer per element", "purpose": "No wheel interception, layout/width animation per frame, or independent bobbing. Score bars use scaleX; editing is immediate." },
+      { "name": "hm-editable-handoff", "value": "progress >= 0.94", "purpose": "Dynamic score controls activate after assembly; static fallbacks activate immediately." }
+    ],
+    "breakpoints": [
+      { "name": "hm-narrow", "value": "(max-width: 759px)" },
+      { "name": "hm-compact-ledger", "value": "(max-width: 380px)" },
+      { "name": "hm-medium-desktop", "value": "(max-width: 1100px) and (min-width: 760px)" },
+      { "name": "hm-wide", "value": "(min-width: 1800px)" },
+      { "name": "hm-lower-desktop", "value": "(min-width: 760px) and (max-height: 760px)" },
+      { "name": "hm-static-viewport", "value": "(max-height: 680px), (max-width: 759px) and (max-height: 819px)" },
+      { "name": "hm-static-motion", "value": "(prefers-reduced-motion: reduce)" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Homepage blue CTA",
+      "kind": "button",
+      "refersTo": "hm-button-primary",
+      "description": "Desktop home action; component-local variable fallbacks make this preview standalone.",
+      "html": "<a class=\"ds-hm-blue\" href=\"#/login\">Get started <svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14m-6-6 6 6-6 6\"/></svg></a>",
+      "css": ".ds-hm-blue{display:inline-flex;align-items:center;justify-content:space-between;gap:34px;min-height:52px;padding:14px 22px;border:1px solid transparent;border-radius:8px;background:var(--hm-blue,#174ae3);color:#fff;font:800 15px 'Manrope',sans-serif;text-decoration:none}.ds-hm-blue svg{width:22px;height:22px;flex:none}.ds-hm-blue:focus-visible{outline:3px solid var(--hm-blue,#174ae3);outline-offset:5px}@media(hover:hover) and (pointer:fine){.ds-hm-blue:hover{background:#1039b7}}@media(prefers-reduced-motion:no-preference){.ds-hm-blue{transition:background-color 150ms ease,scale 150ms cubic-bezier(0.23,1,0.32,1)}.ds-hm-blue:active{scale:.96}}"
+    },
+    {
+      "name": "Homepage inverse CTA",
+      "kind": "button",
+      "refersTo": "hm-button-white",
+      "description": "White CTA on the existing cobalt opening ground, included as preview context for its white focus outline.",
+      "html": "<div class=\"ds-hm-inverse-ground\"><a class=\"ds-hm-inverse\" href=\"#/login\">Get started <svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 12h14m-6-6 6 6-6 6\"/></svg></a></div>",
+      "css": ".ds-hm-inverse-ground{background:var(--hm-blue,#174ae3);padding:28px}.ds-hm-inverse{display:inline-flex;align-items:center;justify-content:space-between;gap:34px;min-height:52px;padding:14px 22px;border:1px solid transparent;border-radius:8px;background:#fff;color:#153ec1;font:800 15px 'Manrope',sans-serif;text-decoration:none}.ds-hm-inverse svg{width:22px;height:22px;flex:none}.ds-hm-inverse:focus-visible{outline:3px solid #fff;outline-offset:5px}@media(hover:hover) and (pointer:fine){.ds-hm-inverse:hover{background:#e2eaff}}@media(prefers-reduced-motion:no-preference){.ds-hm-inverse{transition:background-color 150ms ease,scale 150ms cubic-bezier(0.23,1,0.32,1)}.ds-hm-inverse:active{scale:.96}}"
+    },
+    {
+      "name": "Sample score field",
+      "kind": "input",
+      "refersTo": "hm-score-input",
+      "description": "Editable desktop score-field appearance. This static preview does not simulate the grading JavaScript.",
+      "html": "<div class=\"ds-hm-score\"><label for=\"ds-hm-score-input\">Unit 4 Test</label><div class=\"ds-hm-score-row\"><input id=\"ds-hm-score-input\" type=\"number\" inputmode=\"decimal\" min=\"0\" max=\"20\" step=\"0.1\" value=\"16\"><span>/ 20</span></div></div>",
+      "css": ".ds-hm-score{font-family:'Manrope',sans-serif;color:var(--hm-ink,#12265a)}.ds-hm-score label{font-size:14px;font-weight:800;cursor:text}.ds-hm-score-row{display:flex;gap:4px;align-items:baseline}.ds-hm-score input{width:77px;border:1px solid #778bad;border-radius:6px;background:#f5f8ff;padding:2px 4px;color:var(--hm-ink,#12265a);font:800 23px 'Manrope',sans-serif;text-align:center;font-variant-numeric:tabular-nums;caret-color:#174ae3}.ds-hm-score input:focus-visible{outline:3px solid var(--hm-blue,#174ae3);outline-offset:5px}.ds-hm-score input:disabled{opacity:1;-webkit-text-fill-color:var(--hm-ink,#12265a);border-color:transparent;background:transparent}.ds-hm-score-row>span{font-size:14px;color:var(--hm-soft,#53617e)}"
+    },
+    {
+      "name": "Gradebook navigation strip",
+      "kind": "nav",
+      "description": "Noninteractive navigation-shaped strip inside the sample board; it is not a set of working app-route links.",
+      "html": "<div class=\"ds-hm-book-nav\"><span>ojjyMelon</span><span>Gradebook</span><span>Sample data · MP1</span></div>",
+      "css": ".ds-hm-book-nav{display:flex;gap:24px;align-items:center;height:48px;padding:0 24px;border-bottom:1px solid var(--hm-line,#cfdaed);background:#fff;color:var(--hm-ink,#12265a);font:700 12px 'Manrope',sans-serif}.ds-hm-book-nav>span:first-child{color:#174ae3;font-size:16px;font-weight:800}.ds-hm-book-nav>span:last-child{margin-left:auto;color:var(--hm-soft,#53617e);font-size:11px}"
+    },
+    {
+      "name": "Assignment sheet",
+      "kind": "card",
+      "refersTo": "hm-sheet",
+      "description": "Real DOM sheet at rest; preview omits timeline transforms, not the structural shadow.",
+      "html": "<div class=\"ds-hm-sheet\"><div class=\"ds-hm-sheet-heading\"><strong>Unit 4 Test</strong></div><p>Follow one assignment through the math.</p></div>",
+      "css": ".ds-hm-sheet{border:1px solid transparent;box-shadow:0 24px 64px #0b286b29,0 3px 9px #0b286b14,0 0 0 1px #c8d5ee;border-radius:12px;background:#fff;color:var(--hm-ink,#12265a);padding:16px 18px 12px;font-family:'Manrope',sans-serif}.ds-hm-sheet-heading{font-size:14px;font-weight:800}.ds-hm-sheet p{font-size:11px;line-height:1.5;margin:4px 0 0;color:var(--hm-soft,#53617e)}"
+    },
+    {
+      "name": "Selected sample course",
+      "kind": "custom",
+      "refersTo": "hm-selected-course",
+      "description": "Selected Algebra row; data-grade A changes the outcome letter to the existing grade green.",
+      "html": "<div class=\"ds-hm-course\"><span class=\"ds-hm-period\">3</span><span>Algebra 1<small>What-if preview</small></span><strong>88.4<span>%</span></strong><b data-grade=\"B\">B</b></div>",
+      "css": ".ds-hm-course{display:grid;grid-template-columns:28px 1fr 74px 28px;align-items:center;gap:14px;padding:10px 12px;border-bottom:1px solid transparent;border-radius:6px;background:#eaf0ff;color:var(--hm-ink,#12265a);font:700 12px 'Manrope',sans-serif}.ds-hm-course small{display:block;margin-top:2px;color:var(--hm-soft,#53617e);font-size:11px;font-weight:500}.ds-hm-period{color:var(--hm-soft,#53617e);font-size:12px;font-weight:600}.ds-hm-course strong{text-align:right;font-size:17px;font-variant-numeric:tabular-nums}.ds-hm-course strong>span{font-size:11px}.ds-hm-course b{color:#174ae3;font-size:20px;text-align:right}.ds-hm-course b[data-grade='A']{color:#176044}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Product as spectacle",
+    "overview": "The approved homepage makes the working gradebook the visual centerpiece. Confident white display type and a cobalt ground give way to pale, readable product surfaces, then a dark close. Depth explains the relationship between assignments, categories, and a course grade; it is not scenery behind the product.\n\nThis is an extraction of the local implementation, not a new brand proposal. The frontmatter describes only the marketing/home namespace. `css/home.css` owns `.hm-home`, the home-only `.hm-topbar`, `.view--home`, and `html.hm-active`; `js/views/home.js` applies and removes these hooks. The login, dashboard, and other application routes retain `css/style.css` and its light/dark theme. Do not apply the homepage display scale to them. Surface strategy and verification live in `.plans/landing-transformation-spec.md` and `scrollcraft/builds/gradebook-transformation/BRIEF.md`.",
+    "keyCharacteristics": [
+      "Cobalt, pale paper, and a dark closing ground.",
+      "Self-hosted Archivo Black display type with existing Manrope text.",
+      "Real DOM gradebook surfaces that transform before becoming editable.",
+      "Home-only expression with the incumbent application theme preserved."
+    ],
+    "rules": [
+      { "name": "The Namespace Rule", "body": "Home colors belong to home. Do not replace the app's `--primary-*`, `--bg`, `--surface*`, `--border*`, `--text*`, or semantic grade colors with these values.", "section": "colors" },
+      { "name": "The Display Boundary Rule", "body": "Archivo Black and the oversized homepage hierarchy do not extend into dashboard headings, forms, or tables. The unchanged app remains Manrope with its existing component sizes (`css/style.css`).", "section": "typography" },
+      { "name": "The Complete Fallback Rule", "body": "The exact short-screen condition is `(max-height: 680px), (max-width: 759px) and (max-height: 819px)`. Either that condition or `(prefers-reduced-motion: reduce)` produces a complete normal-flow story with a static, editable gradebook. CSS and JavaScript must agree. There is no long sticky travel in this mode. The static product width is `min(90%, 860px)`, with `14px` between sheet surfaces.", "section": "layout" }
+    ],
+    "dos": [
+      "**Do** keep homepage tokens and display typography inside the home namespace.",
+      "**Do** preserve native scrolling, keyboard focus, static editable fallbacks, and the same DOM gradebook surfaces.",
+      "**Do** label demonstrations as sample data and preserve authorship, credits, and non-affiliation text.",
+      "**Do** use the existing app theme tokens for login, dashboard, and other operational screens."
+    ],
+    "donts": [
+      "**Don't** apply the homepage palette, Archivo Black hierarchy, or 3D choreography to the unchanged app UI.",
+      "**Don't** replace live product surfaces with raster mockups or add an independent motion writer.",
+      "**Don't** remove reserved validation space or let CSS and JavaScript fallback conditions diverge.",
+      "**Don't** turn a local visual-review verdict into an award, security, physical-device, or production-deployment claim."
+    ]
+  }
+}

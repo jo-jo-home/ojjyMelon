@@ -1,362 +1,392 @@
-/* ojjyMelon landing: a scroll-craft page.
-   Brief and score live in scrollcraft/BRIEF.md. Grammar: filmic one-shot
-   (burden of proof met in the brief). Signature move: the scroll-regrade.
-   The engine (assets/engine/scrollcraft.*) is never edited; this page authors
-   data-sc-* markup, CSS against --sc-p, a Lenis-style smoothed scroll layer,
-   and one bespoke spring-driven regrade driver. */
+import { calculateCategory, calculateGrade } from '../grades.js';
 
-import { $, escapeHTML } from '../ui.js';
-import { letterGrade, letterGradeColor } from '../grades.js';
+// Older service-worker-cached index pages do not include the new home.css link.
+// Keep the network-first module compatible with that shell during deployment.
+const stylesheetURL = new URL('../../css/home.css', import.meta.url).href;
+if (!Array.from(document.querySelectorAll('link[rel="stylesheet"]')).some((link) => link.href === stylesheetURL)) {
+  const stylesheet = document.createElement('link');
+  stylesheet.rel = 'stylesheet';
+  stylesheet.href = stylesheetURL;
+  document.head.appendChild(stylesheet);
+}
 
-let mounted = null;      // ScrollCraft instance for the current home render
-let regradeRaf = 0;      // bespoke regrade loop handle
-let styleLink = null;    // engine stylesheet handle
-let themeEl = null;      // token theme block
-let resizeTimer = 0;
-let lastW = 0;
-const fx = {};           // per-render handles (smooth scroll, resize, listeners)
+let dispose = null;
 
-/* Teardown: everything renderHome registered, and nothing else.
-   Called by the router before any other view renders. */
+// The same category -> course calculation chain used by the real gradebook.
+export function landingGrade(score) {
+  const course = {
+    grade: {},
+    categories: [
+      { name: 'All Tasks / Assessments', weight: 90, points: {}, grade: {} },
+      { name: 'Practice / Preparation', weight: 10, points: {}, grade: {} },
+    ],
+    assignments: [
+      { category: 'All Tasks / Assessments', points: { earned: 72, possible: 80 } },
+      { category: 'All Tasks / Assessments', points: { earned: score, possible: 20 } },
+      { category: 'Practice / Preparation', points: { earned: 46, possible: 50 } },
+    ],
+  };
+  course.categories.forEach((_, i) => calculateCategory(course, i));
+  calculateGrade(course);
+  return course;
+}
+
 export function destroyHomeFX() {
-  if (regradeRaf) { cancelAnimationFrame(regradeRaf); regradeRaf = 0; }
-  if (mounted) { mounted.destroy(); mounted = null; }
-  if (fx.smooth) { fx.smooth.destroy(); delete fx.smooth; }
-  if (styleLink) { styleLink.remove(); styleLink = null; }
-  if (themeEl) { themeEl.remove(); themeEl = null; }
-  window.removeEventListener('resize', fx.onResize || (() => {}));
-  document.documentElement.style.removeProperty('--sc-canvas');
-  document.documentElement.style.removeProperty('scroll-behavior');
-  const view = $('#view');
-  if (view) { view.classList.remove('view--bleed'); }
-  document.getElementById('topbar')?.classList.remove('topbar--world');
+  dispose?.();
+  dispose = null;
 }
 
-/* ---- sample data (labelled on its face; the regrade math is the real thing) ----
-   "All Tasks / Assessments" (90%): 72/80 from other work + the test x/20.
-   "Practice / Preparation" (10%): 46/50 = 92%.
-   Test at 16 -> overall 88.4% (B). Test at 19 -> overall 91.1% (A). The letter
-   flips at x = 17.22, mid-act, through the real letterGrade function. */
-const SAMPLE = {
-  test: { name: 'Unit 4 Test', from: 16, to: 19, possible: 20 },
-  others: { earned: 72, possible: 80 },
-  weightA: 0.9,
-  practice: { pct: 92, weight: 0.1 },
-};
-const SURFACE_COURSES = [
-  { period: 1, name: 'Investigations in Life Science', teacher: 'D. Flores', letter: 'A', raw: 96.4, bar: 96.4, color: 'green' },
-  { period: 3, name: 'Algebra 1', teacher: 'P. Natarajan', letter: 'B', raw: 87.9, bar: 87.9, color: 'blue' },
-  { period: 5, name: 'Grade 7 Adv English', teacher: 'J. Ellis', letter: 'A', raw: 93.1, bar: 93.1, color: 'green' },
-];
-
-function overallFor(earned) {
-  const pctA = ((SAMPLE.others.earned + earned) / (SAMPLE.others.possible + SAMPLE.test.possible)) * 100;
-  const raw = pctA * SAMPLE.weightA + SAMPLE.practice.pct * SAMPLE.practice.weight;
-  return { raw: Math.round(raw * 100) / 100, letter: letterGrade(raw), color: letterGradeColor(letterGrade(raw)) };
-}
-
-/* ---- Lenis-style smoothed scrolling ----
-   Wheel sets a target; one rAF loop walks the real scroll position toward it.
-   Sticky positioning keeps working because it is real scroll. Touch, keyboard
-   and scrollbar drags sync natively (no smoothing), the standard hybrid. */
-function mountSmoothScroll() {
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return null;
-  const s = { target: window.scrollY, current: window.scrollY, raf: 0, on: true };
-  const max = () => Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-  const loop = () => {
-    if (!s.on) return;
-    s.current += (s.target - s.current) * 0.107;
-    if (Math.abs(s.target - s.current) < 0.35) s.current = s.target;
-    window.scrollTo(0, s.current);
-    s.raf = requestAnimationFrame(loop);
-  };
-  const onWheel = (e) => {
-    if (e.ctrlKey) return;
-    e.preventDefault();
-    let dy = e.deltaY;
-    if (e.deltaMode === 1) dy *= 16; else if (e.deltaMode === 2) dy *= window.innerHeight;
-    s.target = Math.max(0, Math.min(s.target + dy, max()));
-    if (!s.raf) s.raf = requestAnimationFrame(loop);
-  };
-  const sync = () => {
-    const y = window.scrollY;
-    if (Math.abs(y - s.current) > 1.5) { s.current = y; s.target = y; }
-  };
-  window.addEventListener('wheel', onWheel, { passive: false });
-  window.addEventListener('scroll', sync, { passive: true });
-  document.documentElement.style.scrollBehavior = 'auto';
-  s.raf = requestAnimationFrame(loop);
-  return {
-    destroy() {
-      s.on = false;
-      cancelAnimationFrame(s.raf);
-      window.removeEventListener('wheel', onWheel);
-      window.removeEventListener('scroll', sync);
-      document.documentElement.style.removeProperty('scroll-behavior');
-    },
-  };
-}
+const arrow = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>';
+const clamp = (n, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, n));
+const ramp = (p, a, b) => { const t = clamp((p - a) / (b - a)); return t * t * (3 - 2 * t); };
+const mix = (a, b, t) => a + (b - a) * t;
 
 export function renderHome(view) {
   destroyHomeFX();
-
-  styleLink = document.createElement('link');
-  styleLink.rel = 'stylesheet';
-  styleLink.href = 'assets/engine/scrollcraft.css';
-  document.head.appendChild(styleLink);
-
-  view.classList.add('view--bleed');
-  document.getElementById('topbar')?.classList.add('topbar--world');
-
-  const courses = SURFACE_COURSES.map((c) => `
-    <div class="oj-course">
-      <div class="oj-course__head"><span class="oj-course__period">${c.period}</span>
-        <div><h3>${escapeHTML(c.name)}</h3><p>${escapeHTML(c.teacher)}</p></div></div>
-      <div class="oj-course__grade"><span class="oj-letter oj-letter--${c.color}">${c.letter}</span><span class="oj-course__raw">${c.raw}%</span></div>
-      <div class="oj-course__bar"><i style="width:${c.bar}%"></i></div>
-    </div>`).join('');
+  const abort = new AbortController();
+  const { signal } = abort;
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  // Mirrors the CSS fallback exactly: short viewports, and narrow viewports too
+  // short for a legible dynamic scene, get the complete static story.
+  const shortScreen = matchMedia('(max-height: 680px), (max-width: 759px) and (max-height: 819px)');
+  const isStatic = () => reduced.matches || shortScreen.matches;
+  const topbar = document.getElementById('topbar');
+  const oldLive = view.getAttribute('aria-live');
+  view.setAttribute('aria-live', 'off'); // Never announce a scroll-driven number on every frame.
+  view.classList.add('view--home');
+  topbar?.classList.add('hm-topbar');
+  document.documentElement.classList.add('hm-active');
 
   view.innerHTML = `
-  <div class="oj-sc" id="oj-sc">
+    <div class="hm-home">
+      <section class="hm-story" aria-label="Explore a sample gradebook">
+        <div class="hm-stage">
+          <div class="hm-paper" aria-hidden="true"></div>
+          <div class="hm-opening">
+            <h1><span>Your grades.</span><span>Your move.</span></h1>
+            <div class="hm-intro">
+              <p>A clearer view of StudentVUE.<br>And a little more control over what comes next.</p>
+              <a class="hm-button hm-button--white" href="#/login">Get started ${arrow}</a>
+              <button class="hm-text-button" type="button" data-try>Try the sample</button>
+            </div>
+          </div>
 
-  <!-- 1 · RECOGNITION: cinematic plane hero -->
-  <section data-sc-act="pin" data-sc-span="2.3" data-sc-drift="#0d1b33">
-    <div data-sc-stage class="oj-hero" data-sc-spotlight>
-      <div class="oj-sky" aria-hidden="true"></div>
-      <div class="oj-aurora" aria-hidden="true"><i></i><i></i></div>
-      <div class="oj-plane oj-stamp" data-sc-parallax="-1.15" aria-hidden="true"><span>A+</span></div>
-      <div class="oj-plane oj-cloud oj-cloud--a" data-sc-parallax="-0.85" aria-hidden="true"></div>
-      <div class="oj-plane oj-cloud oj-cloud--b" data-sc-parallax="-0.45" aria-hidden="true"></div>
-      <div class="oj-plane oj-hero__melon" data-sc-parallax="-0.32" aria-hidden="true">
-        <div class="oj-melon-tilt" data-sc-tilt="7">
-          <img src="assets/img/logo.svg" alt="" width="440" height="440">
-        </div>
-      </div>
-      <div class="oj-chip oj-chip--a" data-sc-parallax="-0.66" aria-hidden="true">
-        <span class="oj-chip__inner"><i class="oj-chip__icon oj-chip__icon--green">✓</i>
-        <span class="oj-chip__t"><b>Cell Quiz</b><span>Life Science · 15/15</span></span>
-        <i class="oj-letter oj-letter--green">A</i></span>
-      </div>
-      <div class="oj-chip oj-chip--b" data-sc-parallax="-0.18" aria-hidden="true">
-        <span class="oj-chip__inner oj-bob-b"><i class="oj-chip__icon oj-chip__icon--blue">✎</i>
-        <span class="oj-chip__t"><b>HW Practice</b><span>Algebra 1 · 5/5</span></span>
-        <i class="oj-letter oj-letter--blue">A</i></span>
-      </div>
-      <div class="oj-plane oj-wave" data-sc-parallax="0.55" aria-hidden="true">
-        <svg viewBox="0 0 1440 180" preserveAspectRatio="none"><path d="M0,96 C240,160 480,20 760,64 C1040,108 1240,150 1440,96 L1440,180 L0,180 Z" fill="currentColor"></path></svg>
-      </div>
-      <div class="sc-copy sc-copy--lead oj-hero-copy" data-sc-cue="0 0.8 0">
-        <h1 class="sc-display sc-display--xl" data-sc-kinetic="lines">Your quarter, at a glance.</h1>
-        <p class="sc-body">ojjyMelon turns your StudentVUE gradebook into something you can read at speed. One sign in. Everything appears.</p>
-        <a class="cta" href="#/login" data-sc-magnet="0.24" data-sc-cue="0.12" data-sc-rise="0">Get started</a>
-      </div>
-    </div>
-  </section>
+          <div class="hm-caption hm-caption--layers" aria-hidden="true">
+            <h2>One grade.<br> Every layer.</h2>
+            <p>Assignments feed categories.<br>Categories carry weight.<br>Now you can see the whole picture.</p>
+          </div>
+          <div class="hm-caption hm-caption--math" aria-hidden="true">
+            <h2>Three points,<br> one letter.</h2>
+            <p>Three more points on this test.<br>The entire course recalculates.</p>
+            <p class="hm-grade-change" aria-label="B to A"><span>B</span>${arrow}<strong>A</strong></p>
+          </div>
+          <div class="hm-caption hm-caption--ready" aria-hidden="true">
+            <h2>What if<br> you got…</h2>
+            <p>Your turn. Change the test score.<br>See what it means for the course.</p>
+            <a class="hm-button" href="#/login">Get started ${arrow}</a>
+          </div>
 
-  <!-- 2 · TENSION: editorial kinetic type -->
-  <section class="sc-section" data-sc-act="flow" data-sc-drift="#101d36">
-    <div class="sc-wrap oj-ritual sc-stack" data-sc-in data-sc-stagger="120">
-      <h2 class="sc-display oj-ritual-h">The StudentVUE ritual.</h2>
-      <p class="oj-ritual-line">Open the portal. Wait for the tables to load.</p>
-      <p class="oj-ritual-line">Find the class. Find the category. Find the assignment.</p>
-      <p class="oj-ritual-line">Do the percentage math in your head. Hope it was right.</p>
-      <p class="oj-ritual-turn">Every single time, for one number.</p>
-    </div>
-  </section>
-
-  <!-- 3 · TURN: pan into the surface -->
-  <section data-sc-act="pan" data-sc-drift="#0c1830" id="oj-pan-surface">
-    <div data-sc-stage>
-      <div class="oj-rail" data-sc-pan="0.05">
-        <div class="oj-rail__lead sc-stack">
-          <h2 class="sc-display sc-display--md">One sign in. <br>Then everything.</h2>
-          <p class="sc-body">Your whole gradebook, translated into something readable at speed.</p>
-        </div>
-        <div class="oj-surface" data-sc-tilt="4">
-          <div class="oj-surface__bar"><span class="oj-dot"></span><span class="oj-dot"></span><span class="oj-dot"></span><em>Gradebook · sample student</em></div>
-          ${courses}
-        </div>
-        <div class="oj-note sc-stack">
-          <h3>Real data once you sign in.</h3>
-          <p>This panel is a sample. Yours pulls live from your school, every time you open it.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- 4 · PEAK: the scroll-regrade -->
-  <section data-sc-act="pin" data-sc-span="3.4" data-sc-dwell="0.3" data-sc-drift="#0a1626" id="oj-regrade">
-    <div data-sc-stage class="oj-regrade">
-      <div class="oj-aurora oj-aurora--peak" aria-hidden="true"><i></i><i></i></div>
-      <div class="oj-regrade-grid">
-        <div class="sc-copy oj-regrade-copy" data-sc-cue="0 0.24 0">
-          <h2 class="sc-display sc-display--lg" data-sc-kinetic="lines">Scroll. Watch the math.</h2>
-          <p class="sc-body">The slider is your scroll wheel. This runs the same grading code the app ships.</p>
-        </div>
-        <div class="oj-calc-wrap" data-sc-cue="0.1">
-          <div class="oj-calc">
-            <div class="oj-calc__head"><span class="oj-calc__badge" id="oj-rg-letter">B</span>
-              <div><h3>Algebra 1 · MP1</h3><p id="oj-rg-overall">88.4% overall</p></div></div>
-            <div class="oj-calc__row">
-              <div class="oj-calc__assign">
-                <p class="oj-calc__label">Unit 4 Test</p>
-                <p class="oj-calc__score"><span id="oj-rg-earned" class="sc-nums">16</span><span class="oj-calc__of"> / 20</span></p>
-                <div class="oj-cat__bar oj-cat__bar--big"><i id="oj-rg-barT"></i></div>
+          <p class="hm-static-note">One grade, three layers. Assignments feed weighted categories; categories feed the course.</p>
+          <div class="hm-product-position">
+            <div class="hm-product" role="group" aria-label="Interactive sample Algebra gradebook">
+              <div class="hm-book hm-sheet">
+                <div class="hm-book-nav"><span>ojjyMelon</span><span>Gradebook</span><span>Sample data · MP1</span></div>
+                <div class="hm-book-heading"><h3>Your quarter.</h3><span>Three classes. One clear view.</span></div>
+                <div class="hm-course"><span class="hm-period">1</span><span>Life Science<small>All Tasks / Assessments</small></span><strong>96.4<span>%</span></strong><b>A</b></div>
+                <div class="hm-course hm-course--selected"><span class="hm-period">3</span><span>Algebra 1<small>What-if preview</small></span><strong><span data-course-pct>88.4</span><span>%</span></strong><b data-letter>B</b></div>
+                <div class="hm-course hm-course--extra"><span class="hm-period">5</span><span>Advanced English<small>All Tasks / Assessments</small></span><strong>93.1<span>%</span></strong><b>A</b></div>
               </div>
-              <div class="oj-calc__bars">
-                <div class="oj-cat"><span>Overall · weighted across categories</span><div class="oj-cat__bar"><i id="oj-rg-barO"></i></div><em id="oj-rg-pctO"></em></div>
-                <div class="oj-cat"><span>Practice / Preparation · 10%</span><div class="oj-cat__bar"><i style="width:92%"></i></div><em>92.0%</em></div>
+
+              <div class="hm-weights hm-sheet">
+                <div class="hm-layer-title"><span>Inside Algebra 1</span><span>Weighted categories</span></div>
+                <div class="hm-weight-row"><span>Assessments <b>90%</b></span><div class="hm-track"><i data-assessment-bar></i></div><strong><span data-assessment-pct>88.0</span>%</strong></div>
+                <div class="hm-weight-row"><span>Practice <b>10%</b></span><div class="hm-track"><i class="hm-practice-bar"></i></div><strong>92.0%</strong></div>
+                <p class="hm-equation"><span data-equation>88.0% × 0.9 + 92.0% × 0.1</span><strong>= <span data-weighted-pct>88.4</span>%</strong></p>
+              </div>
+
+              <div class="hm-assignment hm-sheet">
+                <div class="hm-assignment-heading"><div><label for="hm-score">Unit 4 Test</label><p data-edit-hint>Follow one assignment through the math.</p></div><div class="hm-score-field"><input id="hm-score" type="number" inputmode="decimal" min="0" max="20" step="0.1" value="16" disabled aria-describedby="hm-score-help hm-score-error"><span>/ 20</span></div></div>
+                <label class="hm-sr-only" for="hm-range">Sample test score out of 20</label>
+                <input id="hm-range" type="range" min="0" max="20" step="0.1" value="16" disabled>
+                <div class="hm-assignment-footer"><span id="hm-score-help">Sample only. School records never change.</span><button class="hm-reset" type="button" disabled>Reset</button></div>
+                <p id="hm-score-error" class="hm-validation">Enter a score from 0 to 20 in 0.1 steps.</p>
+                <p class="hm-sr-only" data-announcement role="status" aria-live="polite"></p>
               </div>
             </div>
-            <p class="oj-calc__foot">Sample data. In the app, every keystroke recomputes like this.</p>
           </div>
+          <p class="hm-scene-note">Your gradebook, with room to explore.</p>
         </div>
-      </div>
-    </div>
-  </section>
+      </section>
 
-  <!-- 5 · RANGE: the toolkit, sideways -->
-  <section data-sc-act="pan" data-sc-drift="#0d1c34" id="oj-pan-range">
-    <div data-sc-stage>
-      <div class="oj-rail" data-sc-pan="0.05">
-        <div class="oj-rail__lead sc-stack">
-          <h2 class="sc-display sc-display--md">The rest of the melon.</h2>
-          <p class="sc-body">Everything GradeMelon taught us to build, and a little more.</p>
+      <section class="hm-beyond" aria-labelledby="hm-beyond-title">
+        <h2 id="hm-beyond-title">The whole school day.<br>Not just the numbers.</h2>
+        <div class="hm-feature-ledger">
+          <p><strong>Grades & what-ifs</strong><span>Edit scores. Explore possibilities.</span></p>
+          <p><strong>GPA & optimizer</strong><span>Work backward from the grade you want.</span></p>
+          <p><strong>Schedule & attendance</strong><span>Your classes and the days in between.</span></p>
+          <p><strong>Documents</strong><span>Report cards and assessment results.</span></p>
         </div>
-        <article class="oj-tool" data-sc-tilt="5"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg><h3>Optimizer</h3><p>Pick the grade you want. It tells you what to earn on the remaining work.</p></article>
-        <article class="oj-tool" data-sc-tilt="5"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="12" y2="18"/></svg><h3>GPA</h3><p>Weighted and unweighted, on MCPS policy. Honors, AP and IB included.</p></article>
-        <article class="oj-tool" data-sc-tilt="5"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><h3>Attendance</h3><p>Absences and tardies per period, charted and gridded by day.</p></article>
-        <article class="oj-tool" data-sc-tilt="5"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><h3>Documents</h3><p>Report cards and assessment results, opened as PDFs.</p></article>
-      </div>
-    </div>
-  </section>
+      </section>
 
-  <!-- 6 · COMMITMENT: close with colophon -->
-  <section data-sc-act="pin" data-sc-span="1.25" data-sc-drift="#0a1426">
-    <div data-sc-stage class="oj-close" data-sc-spotlight>
-      <div class="oj-close__inner">
-        <div class="oj-close__melon" aria-hidden="true"><img src="assets/img/logo.svg" alt="" width="140" height="140"></div>
-        <h2 class="sc-display sc-display--lg" data-sc-cue="0.06" data-sc-kinetic="lines">Made for students. <br>Made by Jonas.</h2>
-        <p class="sc-body" data-sc-cue="0.16">Free, open source, no ads. Thanks Jayden, for the idea. And The Fool, for the advice.</p>
-        <a class="cta" href="#/login" data-sc-magnet="0.26" data-sc-cue="0.22" data-sc-rise="0">Get started</a>
-        <footer class="oj-colophon">
-          <span>© ${new Date().getFullYear()} ojjyMelon · Not affiliated with Edupoint or MCPS</span>
-          <a href="#/credits">Credits 💙</a>
+      <section class="hm-close" aria-labelledby="hm-close-title">
+        <h2 id="hm-close-title">Make it<br>your quarter.</h2>
+        <div class="hm-close-action"><p>Built for students who want<br>to understand their grades.</p><a class="hm-button hm-button--white" href="#/login">Get started ${arrow}</a></div>
+        <footer class="hm-footer">
+          <div><p>Made by Jonas, Jayden's brother :) ❤️</p><p>Jayden, thank you bro for the idea.</p><p>General advice from The Fool. It wouldn't have been possible without you.</p></div>
+          <div class="hm-footer-links"><a href="#/credits">Full credits</a><a href="https://github.com/jo-jo-home/ojjyMelon" target="_blank" rel="noopener noreferrer">Source code ${arrow}</a><a href="#/privacy">Privacy</a></div>
+          <p class="hm-legal">© ${new Date().getFullYear()} ojjyMelon. Not affiliated with Edupoint or MCPS.</p>
         </footer>
-      </div>
-    </div>
-  </section>
+      </section>
+    </div>`;
 
-  <div class="sc-grain" aria-hidden="true"></div>
-  </div>`;
+  const root = view.querySelector('.hm-home');
+  const q = (selector) => root.querySelector(selector);
+  const stage = q('.hm-stage');
+  const story = q('.hm-story');
+  const product = q('.hm-product');
+  const position = q('.hm-product-position');
+  const opening = q('.hm-opening');
+  const intro = q('.hm-intro');
+  const paper = q('.hm-paper');
+  const weights = q('.hm-weights');
+  const assignment = q('.hm-assignment');
+  const sceneNote = q('.hm-scene-note');
+  const captions = [q('.hm-caption--layers'), q('.hm-caption--math'), q('.hm-caption--ready')];
+  const score = q('#hm-score');
+  const range = q('#hm-range');
+  const reset = q('.hm-reset');
+  const validation = q('.hm-validation');
+  const announcement = q('[data-announcement]');
+  const assessmentBar = q('[data-assessment-bar]');
+  const pct = q('[data-course-pct]');
+  const letter = q('[data-letter]');
+  const catPct = q('[data-assessment-pct]');
+  const equation = q('[data-equation]');
+  const weighted = q('[data-weighted-pct]');
+  let raf = 0;
+  let previousTime = 0;
+  let progress = 0;
+  let target = 0;
+  let geometry;
+  let editable = false;
+  let manual = false;
+  let lastScore = NaN;
+  let dead = false;
 
-  themeEl = document.createElement('style');
-  themeEl.textContent = `
-    .oj-sc {
-      --sc-canvas: #0d1b33; --sc-surface: #14233f;
-      --sc-ink: #eef4ff; --sc-ink-soft: #93a5c8;
-      --sc-accent: #60a5fa; --sc-accent-ink: #0a1626;
-      --sc-font-display: "Manrope", system-ui, sans-serif;
-      --sc-font-text: "Manrope", system-ui, sans-serif;
-      --sc-shadow-color: 220 60% 4%;
-      background: var(--sc-canvas);
-      color: var(--sc-ink);
-    }`;
-  document.head.appendChild(themeEl);
-
-  fx.smooth = mountSmoothScroll();
-
-  const engineScript = document.createElement('script');
-  engineScript.src = 'assets/engine/scrollcraft.js';
-  engineScript.onload = () => {
-    sizePans();
-    mounted = window.ScrollCraft.mount($('#oj-sc'));
-  };
-  document.head.appendChild(engineScript);
-
-  function sizePans() {
-    const vh = window.innerHeight;
-    for (const id of ['oj-pan-surface', 'oj-pan-range']) {
-      const act = document.getElementById(id);
-      const rail = act?.querySelector('.oj-rail');
-      if (!act || !rail) continue;
-      const overflow = Math.max(0, rail.scrollWidth - window.innerWidth);
-      act.dataset.scSpan = Math.max(1.2, overflow / vh + 1.08).toFixed(2);
-    }
+  function paintScore(value, fromUser = false) {
+    value = Math.round(value * 10) / 10;
+    if (!fromUser && value === lastScore) return;
+    lastScore = value;
+    const result = landingGrade(value);
+    const overall = result.grade.raw.toFixed(1);
+    const assessment = result.categories[0].grade.raw.toFixed(1);
+    pct.textContent = overall;
+    letter.textContent = result.grade.letter;
+    letter.dataset.grade = result.grade.letter;
+    catPct.textContent = assessment;
+    equation.textContent = `${assessment}% × 0.9 + 92.0% × 0.1`;
+    weighted.textContent = overall;
+    assessmentBar.style.transform = `scaleX(${result.categories[0].grade.raw / 100})`;
+    if (document.activeElement !== score || !fromUser) score.value = String(value);
+    range.value = String(value);
+    range.setAttribute('aria-valuetext', `${value} out of 20. Course ${overall}%, ${result.grade.letter}.`);
+    if (fromUser) announcement.textContent = `Sample course: ${overall} percent, grade ${result.grade.letter}.`;
   }
-  fx.sizePans = sizePans;
-  fx.onResize = onResize;
 
-  lastW = window.innerWidth;
-  window.addEventListener('resize', onResize);
-  function onResize() {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => {
-      if (Math.abs(window.innerWidth - lastW) < 120) return;
-      lastW = window.innerWidth;
-      if (mounted) { mounted.destroy(); mounted = null; }
-      sizePans();
-      mounted = window.ScrollCraft.mount($('#oj-sc'));
-    }, 250);
+  function setEditable(value) {
+    if (editable === value) return;
+    editable = value;
+    score.disabled = range.disabled = reset.disabled = !value;
+    q('[data-edit-hint]').textContent = value ? 'Change this score. The course responds.' : 'Follow one assignment through the math.';
+    root.classList.toggle('hm-editable', value);
+    if (!value) { manual = false; validation.classList.remove('is-shown'); score.removeAttribute('aria-invalid'); }
   }
 
-  /* ---- The signature move: the scroll-regrade, spring-driven ----
-     The painted value chases the true value with a lerp, so fast scrolling
-     glides instead of snapping. The letter badge pops through WAAPI when it
-     flips. Single writer: this paint owns every number in the panel. */
-  const rgAct = $('#oj-regrade');
-  const rgLetter = $('#oj-rg-letter', view);
-  const rgOverall = $('#oj-rg-overall', view);
-  const rgEarned = $('#oj-rg-earned', view);
-  const rgBarT = $('#oj-rg-barT', view);
-  const rgBarO = $('#oj-rg-barO', view);
-  const rgPctO = $('#oj-rg-pctO', view);
-  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  let lastLetter = '';
-  const paint = (earned) => {
-    const o = overallFor(earned);
-    const pctT = (earned / SAMPLE.test.possible) * 100;
-    rgEarned.textContent = String(Math.round(earned * 10) / 10).replace(/\.0$/, '');
-    rgOverall.textContent = o.raw + '% overall';
-    rgBarT.style.width = Math.min(pctT, 100) + '%';
-    rgBarO.style.width = Math.min(o.raw, 100) + '%';
-    rgPctO.textContent = o.raw.toFixed(1) + '%';
-    if (o.letter !== lastLetter) {
-      rgLetter.textContent = o.letter;
-      rgLetter.className = 'oj-calc__badge oj-letter oj-letter--' + o.color;
-      if (lastLetter && !reduce && rgLetter.animate) {
-        rgLetter.animate(
-          [
-            { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(96,165,250,0.55)' },
-            { transform: 'scale(1.18)', boxShadow: '0 0 0 14px rgba(96,165,250,0)' },
-            { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(96,165,250,0)' },
-          ],
-          { duration: 340, easing: 'cubic-bezier(0.23, 1, 0.32, 1)' });
-      }
-      lastLetter = o.letter;
+  function measure() {
+    if (isStatic()) {
+      product.style.removeProperty('height');
+      weights.style.removeProperty('top');
+      assignment.style.removeProperty('top');
+      return;
     }
-  };
-
-  if (reduce) {
-    paint(SAMPLE.test.to);
-  } else {
-    let paintedP = 0;
-    const tick = () => {
-      if (!document.body.contains(rgAct)) { regradeRaf = 0; return; }
-      const prect = rgAct.getBoundingClientRect();
-      if (prect.bottom < -300 || prect.top > innerHeight + 300) {
-        regradeRaf = requestAnimationFrame(tick); return;   // off-screen: skip the paint, keep the loop
-      }
-      const vh = window.innerHeight;
-      const total = Math.max(prect.height - vh, 1);
-      const targetP = Math.min(1, Math.max(0, -prect.top / total));
-      paintedP += (targetP - paintedP) * 0.16;
-      if (Math.abs(targetP - paintedP) < 0.001) paintedP = targetP;
-      const eased = paintedP * paintedP * (3 - 2 * paintedP);
-      paint(SAMPLE.test.from + (SAMPLE.test.to - SAMPLE.test.from) * eased);
-      regradeRaf = requestAnimationFrame(tick);
+    const r = story.getBoundingClientRect();
+    const sr = stage.getBoundingClientRect();
+    const ib = intro.getBoundingClientRect();
+    const w = stage.clientWidth;
+    const h = stage.clientHeight;
+    const mobile = w < 760;
+    const bookWidth = mobile ? Math.min(w - 32, 510) : Math.min(w * 0.59, 900);
+    // Resolve layout once, outside the animation loop, from real content rather
+    // than assuming fixed sheet heights after font loading or text wrapping.
+    weights.style.top = `${q('.hm-book').offsetHeight + 12}px`;
+    assignment.style.top = `${weights.offsetTop + weights.offsetHeight + 12}px`;
+    const extent = assignment.offsetTop + assignment.offsetHeight;
+    product.style.height = `${extent}px`;
+    // The settled stack must clear the tallest scene caption on mobile.
+    const capBottom = Math.max(...captions.map((c) => c.offsetTop + c.offsetHeight));
+    const topClear = mobile ? capBottom + 18 : 70;
+    // Mobile keeps extra bottom room: mid-assembly rotation and the returning
+    // z-flight briefly extend the stack past its resting extent.
+    const bottomPad = mobile ? 46 : 14;
+    const scale = clamp((h - topClear - bottomPad) / extent, 0.72, 1);
+    const introRight = ib.right - sr.left;
+    const introBottom = ib.bottom - sr.top;
+    let x0, y0;
+    if (mobile) {
+      x0 = (w - bookWidth) / 2;
+      y0 = Math.max(310, h * 0.49, introBottom + 16);
+    } else {
+      const sideX = Math.max(w * 0.34, introRight + 16);
+      if (sideX + bookWidth <= w - 4) { x0 = sideX; y0 = h * 0.43; }
+      else { x0 = (w - bookWidth) / 2; y0 = Math.min(introBottom + 28, Math.max(h * 0.3, h - 96)); }
+    }
+    geometry = {
+      top: r.top + window.scrollY - 64,
+      travel: Math.max(story.offsetHeight - h, 1),
+      w, h, mobile, bookWidth, extent, scale, x0, y0,
+      x1: mobile ? (w - bookWidth) / 2 : w * 0.39,
+      y1: mobile ? clamp(h - extent * scale - bottomPad, topClear, h * 0.38) : Math.max(70, (h - extent * scale) * 0.42),
     };
-    regradeRaf = requestAnimationFrame(tick);
+    readScroll();
   }
+
+  function paint(p) {
+    const { h, mobile, bookWidth, scale, x0, x1, y0, y1 } = geometry;
+    const enter = ramp(p, 0.03, 0.28);
+    const explode = ramp(p, 0.25, 0.43) * (1 - ramp(p, 0.46, 0.60));
+    const assemble = ramp(p, 0.48, 0.67);
+    const grade = ramp(p, 0.60, 0.86);
+    const ready = ramp(p, 0.86, 0.94);
+    paper.style.transform = `translateY(${(1 - ramp(p, 0.09, 0.27)) * 101}%)`;
+    opening.style.opacity = String(1 - ramp(p, 0.03, 0.16));
+    opening.style.transform = `translateY(${-enter * h * 0.20}px)`;
+    opening.inert = p > 0.15;
+
+    const visible = [ramp(p, 0.22, 0.29) * (1 - ramp(p, 0.46, 0.53)), ramp(p, 0.50, 0.57) * (1 - ramp(p, 0.83, 0.89)), ready];
+    captions.forEach((el, i) => {
+      el.style.opacity = String(visible[i]);
+      el.style.transform = `translateY(${(1 - visible[i]) * 18}px)`;
+      el.setAttribute('aria-hidden', String(visible[i] < 0.5));
+      el.inert = visible[i] < 0.5;
+    });
+
+    position.style.transform = `translate3d(${mix(x0, x1, enter)}px,${mix(y0, y1, enter)}px,0) scale(${scale})`;
+    const rx = mobile ? mix(8, 0, assemble) : mix(12 + enter * 9, 0, assemble);
+    const ry = mobile ? 0 : mix(-16 - enter * 6, 0, assemble);
+    const rz = mobile ? mix(-4, 0, enter) : mix(-7, 0, assemble);
+    product.style.transform = `perspective(1600px) rotateX(${rx}deg) rotateY(${ry}deg) rotateZ(${rz}deg)`;
+    const ex = mobile ? 0 : -bookWidth * 0.07;
+    weights.style.transform = `translate3d(${ex * explode}px,${(mobile ? -15 : -28) * explode}px,${(mobile ? 30 : 95) * explode}px) rotateZ(${-3 * explode}deg)`;
+    assignment.style.transform = `translate3d(${(mobile ? 0 : -bookWidth * 0.13) * explode}px,${(mobile ? 30 : 70) * explode}px,${(mobile ? 55 : 180) * explode}px) rotateZ(${3 * explode}deg)`;
+    sceneNote.style.opacity = String(1 - enter);
+    setEditable(p >= 0.94);
+    if (!manual) paintScore(mix(16, 19, grade));
+  }
+
+  function tick(time) {
+    raf = 0;
+    if (dead || document.hidden || isStatic()) return;
+    const dt = previousTime ? Math.min(time - previousTime, 50) : 16;
+    previousTime = time;
+    progress += (target - progress) * (1 - Math.exp(-dt / 60));
+    if (Math.abs(target - progress) < 0.0001) progress = target;
+    paint(progress);
+    if (Math.abs(target - progress) > 0.0001) raf = requestAnimationFrame(tick);
+    else previousTime = 0;
+  }
+
+  function readScroll() {
+    if (dead || !geometry || isStatic()) return;
+    target = clamp((window.scrollY - geometry.top) / geometry.travel);
+    if (!raf && !document.hidden) raf = requestAnimationFrame(tick);
+  }
+
+  // One switch for both fallbacks: reduced motion and short viewports.
+  // The CSS media queries and this function must stay in agreement.
+  function applyLayout() {
+    cancelAnimationFrame(raf); raf = 0; previousTime = 0;
+    const staticNow = isStatic();
+    root.classList.toggle('hm-motion-off', staticNow);
+    // Clear timeline-owned styles before the static, normal-flow layout takes over.
+    for (const el of [paper, opening, position, product, weights, assignment, sceneNote, ...captions]) {
+      el.style.removeProperty('transform'); el.style.removeProperty('opacity');
+    }
+    opening.inert = false;
+    captions.forEach((el, i) => { el.inert = i !== 2; el.setAttribute('aria-hidden', String(i !== 2)); });
+    manual = false;
+    setEditable(staticNow);
+    paintScore(16);
+    measure();
+    if (!staticNow) {
+      target = clamp((window.scrollY - geometry.top) / geometry.travel);
+      progress = target;
+      paint(progress);
+    }
+  }
+
+  function edit(value) {
+    if (!editable) return;
+    const n = value === '' ? NaN : Number(value);
+    const inRange = Number.isFinite(n) && n >= 0 && n <= 20;
+    // The browser owns step validation: 16.25 is a stepMismatch on step 0.1.
+    // A focused buffer that would compute differently is treated as invalid,
+    // never silently recomputed behind the visitor's back.
+    const valid = inRange && !score.validity.stepMismatch;
+    validation.classList.toggle('is-shown', !valid);
+    score.setAttribute('aria-invalid', String(!valid));
+    if (!valid) return;
+    manual = true;
+    paintScore(n, true);
+  }
+
+  score.addEventListener('input', () => edit(score.value), { signal });
+  score.addEventListener('blur', () => {
+    if (!editable) return;
+    if (validation.classList.contains('is-shown')) {
+      const n = score.value === '' ? NaN : Number(score.value);
+      if (Number.isFinite(n) && n >= 0 && n <= 20) {
+        // Commit to the nearest 0.1 step so field, math, and range agree.
+        manual = true;
+        score.value = String(Math.round(n * 10) / 10);
+        paintScore(Number(score.value), true);
+      } else {
+        score.value = String(lastScore);
+      }
+      validation.classList.remove('is-shown');
+      score.removeAttribute('aria-invalid');
+    }
+  }, { signal });
+  range.addEventListener('input', () => { score.value = range.value; edit(range.value); }, { signal });
+  reset.addEventListener('click', () => { manual = true; validation.classList.remove('is-shown'); score.removeAttribute('aria-invalid'); paintScore(16, true); }, { signal });
+  q('[data-try]').addEventListener('click', () => {
+    if (!isStatic()) {
+      window.scrollTo({ top: geometry.top + geometry.travel, behavior: 'instant' });
+      target = progress = 1;
+      paint(1);
+    }
+    score.focus({ preventScroll: !isStatic() });
+  }, { signal });
+  window.addEventListener('scroll', readScroll, { passive: true, signal });
+  window.addEventListener('resize', measure, { passive: true, signal });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { cancelAnimationFrame(raf); raf = 0; previousTime = 0; }
+    else if (!isStatic()) { readScroll(); progress = target; if (geometry) paint(progress); }
+  }, { signal });
+  reduced.addEventListener('change', applyLayout, { signal });
+  shortScreen.addEventListener('change', applyLayout, { signal });
+  document.fonts?.ready.then(() => { if (!dead) measure(); });
+  const observer = new ResizeObserver(measure);
+  observer.observe(stage);
+  applyLayout();
+
+  dispose = () => {
+    dead = true;
+    abort.abort();
+    observer.disconnect();
+    cancelAnimationFrame(raf);
+    view.classList.remove('view--home');
+    topbar?.classList.remove('hm-topbar');
+    document.documentElement.classList.remove('hm-active');
+    if (oldLive === null) view.removeAttribute('aria-live'); else view.setAttribute('aria-live', oldLive);
+  };
 }
